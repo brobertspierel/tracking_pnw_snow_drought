@@ -1,1 +1,1 @@
-# sentinel_1_snow
+A repo for python scripts for working on the mapping and understanding of low snow events (low snow persistence) in the PNW using Sentinel 1, ancillary data and SNOTEL data. Sentinel 1 is dealt with in GEE. 
