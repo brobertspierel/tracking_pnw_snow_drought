@@ -141,104 +141,118 @@ def water_years(input_df,start_date,end_date):
 ################################################################################################
 #data prep functions
 
-  
-def scaling(df,parameter,new_parameter,season):
-    """Define a scaler to change data to 0-1 scale."""
-    
-    
-    #df[f'{parameter}'] =df[f'{parameter}'].replace(0,np.nan)
-     
-    #df[new_parameter] = df[f'{parameter}'].rolling(7).mean()
-    #df[new_parameter] = df[parameter].rolling(7).var()*1000
-    #df[new_parameter] = df[parameter].rolling(7).mean()
-    
-    # min_val=df[new_parameter].min()
-    # max_val=df[new_parameter].max()
-    # df[new_parameter] = ((df[new_parameter]-min_val)/(max_val-min_val))#.rolling(7).var()
-    #df[new_parameter] = np.squeeze(TimeSeriesScalerMeanVariance().fit_transform(df[new_parameter].to_numpy()))
-
-    #df[new_parameter] = df[new_parameter]*1000
-    #df[new_parameter] = df[new_parameter].replace(np.nan,0)
-    #print('df is ',df)
-    ####################
-    #added in 06042020
-    #select core winter months
-    if season.lower() == 'core_winter': 
-        df = df[df['month'].isin(['12','01','02'])]
-        #print(df)
-        #print(df.columns)
-        #use this to resample to a different temporal resolution
-        # df['date'] = pd.to_datetime(df['date'])
-        # #df['date'] = pd.to_datetime(df['date'])
-        # df = df.set_index('date')
-        # df[parameter] = df[parameter].resample('M').mean()
-        # df = df.dropna()
-
-        # df = df.reset_index()
-    #select spring months
-    elif season.lower() == 'spring': 
-        df = df[df['month'].isin(['03','04','05'])]
-    elif season.lower() == 'resample': 
-        df['date'] = pd.to_datetime(df['date'])
-        df = df.set_index('date')
-        #df_slice = df.loc['']
-        df[new_parameter] = df[new_parameter].resample('W').mean()
-        df[new_parameter]=df[new_parameter].round(2)
-
-        df = df.dropna()
-        #print(df)
-        df = df.reset_index()
-    else: 
-        print('that is not a valid parameter for season')
-
-    return df
-
-def prepare_clustering(input_ls,parameter,new_parameter,start_date,end_date,season): 
-    """This should change the water year lists into dataframes so that they can be fed in as dataframes with every year, one for every station."""
-    station_dict = {}
-    #print('df is ',input_ls[2])
-
-    for df in input_ls: #the input_ls should be the list of dataframes from results. NOTE: change this when you're ready to run the whole archive 
-        station_id=df['id'][0]
-        #prep input data 
-        df1=scaling(df,parameter,new_parameter,season)
-        wy_ls=water_years(df1,start_date,end_date) #list of dicts
-        #print('wy example is: ',len(wy_ls))
-        concat_ls = []
-        for key,value in wy_ls.items():
-             
-            if not value.empty: 
-                df2=value.drop(['date','year','month','id'],axis=1)
-                #df1 = value[new_parameter]
-                #df2 = df2.replace(np.nan,0) #this might need to be changed
-
-                df2=df2.rename(columns={parameter:key}) #changed from new_param
-                concat_ls.append(df2)
-                
-            else: 
-                continue 
-        wy_df = pd.concat(concat_ls,axis=1)
-        #print(wy_df)
-        #add some stats cols
-        wy_df['average'] = wy_df.mean(axis=1)
-        season_mean = wy_df['average'].mean()
-        print('the mean is: ', season_mean)
-        # print(wy_df)
-        # for column in wy_df.columns: 
-        #     print('the column is: ',column)
-        #     wy_df[f'anom_{column}'] = wy_df[column]-wy_df['average']
+class DataCleaning(): 
+    def __init__(self,input_ls,parameter,new_parameter,start_date,end_date,season): 
+            self.input_ls=input_ls
+            self.parameter=parameter
+            self.new_parameter=new_parameter
+            self.start_date=start_date
+            self.end_date=end_date
+            self.season = season 
+    def scaling(self,df):#df,parameter,new_parameter,season):
+        """Define a scaler to change data to 0-1 scale."""
         
-        #wy_df['anomaly'] = wy_df.join(wy_df.subtract(wy_df['average'], axis=0), rsuffix='_perc')
-        #wy_df['anomaly'] =  wy_df.subtract(wy_df.mean(axis=1), axis=0)
-        #wy_df['average'] = wy_df.mean(axis=1)
-        #wy_df['std'] = wy_df.std(axis=1)
-        #wy_df['plus_one_std'] = wy_df['average']+wy_df['std']
-        #wy_df['minus_one_std'] = wy_df['average']-wy_df['std']
-        station_dict.update({station_id:wy_df.T})
-    #pickled = pickle.dump(station_dict, open( f'{filename}', 'ab' ))
-    #print(station_dict)
-    return station_dict,season_mean,wy_df
-#functions used for time series clustering and parallelization
+        
+        #df[f'{parameter}'] =df[f'{parameter}'].replace(0,np.nan)
+         
+        #df[new_parameter] = df[f'{parameter}'].rolling(7).mean()
+        #df[new_parameter] = df[parameter].rolling(7).var()*1000
+        #df[new_parameter] = df[parameter].rolling(7).mean()
+        
+        # min_val=df[new_parameter].min()
+        # max_val=df[new_parameter].max()
+        # df[new_parameter] = ((df[new_parameter]-min_val)/(max_val-min_val))#.rolling(7).var()
+        #df[new_parameter] = np.squeeze(TimeSeriesScalerMeanVariance().fit_transform(df[new_parameter].to_numpy()))
+
+        #df[new_parameter] = df[new_parameter]*1000
+        #df[new_parameter] = df[new_parameter].replace(np.nan,0)
+        #print('df is ',df)
+        ####################
+        #added in 06042020
+        #select core winter months
+        if self.season.lower() == 'core_winter': 
+            df = df[df['month'].isin(['12','01','02'])]
+            #print(df)
+            #print(df.columns)
+            #use this to resample to a different temporal resolution
+            # df['date'] = pd.to_datetime(df['date'])
+            # #df['date'] = pd.to_datetime(df['date'])
+            # df = df.set_index('date')
+            # df[parameter] = df[parameter].resample('M').mean()
+            # df = df.dropna()
+
+            # df = df.reset_index()
+        #select spring months
+        elif self.season.lower() == 'spring': 
+            df = df[df['month'].isin(['03','04','05'])]
+        elif self.season.lower() == 'resample': 
+            df['date'] = pd.to_datetime(df['date'])
+            df = df.set_index('date')
+            #df_slice = df.loc['']
+            df[self.parameter] = df[self.parameter].resample('SM').sum()
+            df[self.parameter]=df[self.parameter].round(2)
+
+            df = df.dropna()
+            #print(df)
+            df = df.reset_index()
+        else: 
+            print('that is not a valid parameter for season')
+
+        return df
+
+    def prepare_data(self):#input_ls,parameter,new_parameter,start_date,end_date,season): 
+        """This should change the water year lists into dataframes so that they can be fed in as dataframes with every year, one for every station."""
+        station_dict = {}
+        #print('df is ',input_ls[2])
+
+        for df in self.input_ls: #the input_ls should be the list of dataframes from results. NOTE: change this when you're ready to run the whole archive 
+            station_id=df['id'][0]
+            #prep input data 
+            df1=self.scaling(df)#self.parameter,self.new_parameter,self.season)
+            wy_ls=water_years(df1,self.start_date,self.end_date) #list of dicts
+            print('wy example is: ',len(wy_ls))
+            concat_ls = []
+            for key,value in wy_ls.items():
+                 
+                if not value.empty: 
+                    df2=value.drop(['date','year','month','id'],axis=1)
+                    #df1 = value[new_parameter]
+                    #df2 = df2.replace(np.nan,0) #this might need to be changed
+
+                    df2=df2.rename(columns={self.parameter:key}) #changed from new_param
+                    concat_ls.append(df2)
+                    
+                else: 
+                    continue 
+            wy_df = pd.concat(concat_ls,axis=1)
+            print(wy_df)
+            wy_df = wy_df.pct_change() * 100
+            #print(wy_df)
+            #add some stats cols
+            #wy_df['average'] = wy_df.mean(axis=1)#removed the addition of an average column
+            #season_mean = wy_df['average'].mean()
+            #print('the mean is: ', season_mean)
+            # print(wy_df)
+            # for column in wy_df.columns: 
+            #     print('the column is: ',column)
+            #     wy_df[f'anom_{column}'] = wy_df[column]-wy_df['average']
+            
+            #wy_df['anomaly'] = wy_df.join(wy_df.subtract(wy_df['average'], axis=0), rsuffix='_perc')
+            #wy_df['anomaly'] =  wy_df.subtract(wy_df.mean(axis=1), axis=0)
+            #wy_df['average'] = wy_df.mean(axis=1)
+            #wy_df['std'] = wy_df.std(axis=1)
+            #wy_df['plus_one_std'] = wy_df['average']+wy_df['std']
+            #wy_df['minus_one_std'] = wy_df['average']-wy_df['std']
+            station_dict.update({station_id:wy_df}) #removed the transpose
+        #pickled = pickle.dump(station_dict, open( f'{filename}', 'ab' ))
+        #print(station_dict)
+        return station_dict,wy_df #removed season mean
+
+##################################################################################
+##################################################################################
+##################################################################################
+#likely depreceated 
+    #functions used for time series clustering and parallelization
         
 def fastDTW_implement(x,y): 
     """Run the python fastDTW function/package."""
@@ -391,92 +405,126 @@ def grid_mapping(shapefile,kmeans_output,cluster_centers,cluster):
     #                             'YlGnBu', figsize=(15,9),   
     #                              scheme='quantiles', k=3, legend =  
     #                               True);
-# def point_mapping(station_list,station_csv,version,state,label,site_label,par_dir,colors,color_dict,diffs,from_year,to_year):
-#     """Create a simple map with selected stations of interest just to see where they are geographically."""
-#     #stolen from: httpsstackoverflow.comquestions44488167plotting-lat-long-points-using-basemap
-#     #first get the list of stations
-#     print('entered point mapping')
-#     station_csv.columns = [c.replace(' ', '_') for c in station_csv.columns]
-#     station_csv['site_num'] = station_csv['site_num'].astype(int)
-#     df=station_csv[station_csv['site_num'].isin(station_list)]
-#     df=df.sort_values(by=['site_num'])
-#     #print(df.head())
-#     #print(df)
-#     # creating a geometry column 
-#     geometry = [Point(xy) for xy in zip(df['lon'], df['lat'])]
-
-#     # Coordinate reference system : WGS84 system was set to 4326
-#     crs = {'init': 'epsg:4326'}
-
-#     # Creating a Geographic data frame 
-#     gdf = gpd.GeoDataFrame(df, crs=crs, geometry=geometry)
-#     gdf = gdf.to_crs(epsg=3857) #3857
-    ###########################################
-    # states = gpd.read_file(par_dir/'states.shp')
-    # state_map=states[states.STATE_NAME.str.contains(state)] 
-    # state_map=state_map.to_crs(epsg=3857)
-    # #oregon = states[~states.STATE_NAME.isin(['Oregon'])]
-    # #print(oregon)
-
-    # #make the figure 
-    # ##############################################
-    # fig, ax = plt.subplots(figsize=(24,22))
-    # #use for the scale bar at some point
-    # #fig = plt.figure(1)
-    # #ax=fig.add_subplot(111,projection=ccrs.UTM(zone='10N'))
-    # #ax.arrow(0.5,0.5, 0.5,0.5,head_width=3, head_length=6)#, fc='k', ec='k')
-
-    # state_map.plot(ax=ax,color='None',edgecolor='black',alpha=0.75,linewidth=3)
-
-    # #make geo dataframe
-
-    # gdf.plot(ax=ax, color=colors,markersize=200,edgecolor='#4c4c4c')
-    # ctx.add_basemap(ax, zoom = 9)
-
-    # plt.gca().axes.get_yaxis().set_visible(False)
-    # plt.gca().axes.get_xaxis().set_visible(False)
-
-    # #get the colors for the legend that occur in that set of years
-    # id_list = set(list(diffs['diffs']))
-    # try: 
-    #     color_dict_ids = {item:color_dict.get(item) for item in id_list} 
-    #     print('color dict ids',color_dict_ids)
-    # except KeyError: 
-    #     print('no intersecting ids')
-    # ############################################
-
-    # #add a north arrow
-    # x, y, arrow_length = 0.98, 0.98, 0.08
-    # ax.annotate('N', xy=(x, y), xytext=(x, y-arrow_length),
-    #         arrowprops=dict(facecolor='black', width=5, headwidth=15),
-    #         ha='center', va='center', fontsize=26,
-    #         xycoords=ax.transAxes)
-    # #add a title
-    # plt.title(f'Oregon {from_year}-{to_year} snow persistence shifts',fontsize=35)
-
-    # #make a colorbar
-
-    # #im = ax.imshow(np.arange(100).reshape((10,10)))
-
-    # # create an axes on the right side of ax. The width of cax will be 5%
-    # # of ax and the padding between cax and ax will be fixed at 0.05 inch.
-    # # divider = make_axes_locatable(ax)
-    # # cax = divider.append_axes("right", size="10%", pad=0.05)
-
-    # #plt.colorbar(im, cax=cax)
-    # img = plt.imshow(np.array([[0,1]]), cmap="coolwarm_r")#,aspect='auto')
-    # img.set_visible(False)
+def transform_data(input_data,year_of_interest,season): 
+    arrs = []
     
-    # cbar=plt.colorbar(img, orientation="vertical",ticks=[0,1],fraction=0.0325, pad=0.04) #get the colorbar to be the same size as the subplot
-    # cbar.ax.set_yticklabels(['Low \npersistence', 'High \npersistence'],fontsize=20)  # vertically oriented colorbar
-    # #add a legend 
-    # # snotel = [plt.Line2D([0,0], [0,0], marker='o',color=color, label='Snotel stations',linestyle='',markersize=8) for color in color_dict_out.values()]
-    # # plt.legend(snotel,manual_color_subset.keys(),numpoints=1,loc='upper left')
-    # #uncomment the for loop below to have labels
-    # for x, y, label in zip(gdf.geometry.x, gdf.geometry.y, gdf[label]):
-    #     ax.annotate(label, xy=(x, y), xytext=(3, 3), textcoords="offset points")
-    # plt.savefig(par_dir/'stats'/'outputs'/'final_figs'/f'{state}_{from_year}_{to_year}_map_final_w_labels.png',bbox_inches = 'tight',
-    # pad_inches = 0) #save the output. Right now the extension is hard coded which isn't ideal
+    for k,v in input_data.items(): 
+        #print('k is: ', k)
+        #print('v is: ', v.columns)
+        #select (or not) a year of interest 
+        #add decimal place
+        if len(k) == 3: 
+            k = '.00000'+k 
+        elif len(k) == 4: 
+            k='.0000'+k
+        else: 
+            print(f'something is wrong with that key which is {k}')
+            break 
+        #print('v shape is: ', v.shape)
+        try: 
+            if year_of_interest.isnumeric(): 
+                df_slice = pd.DataFrame(v[year_of_interest])
+                if not season == 'resample': 
+                    df = v.append(pd.Series([float(k+str(i)) for i in v.columns],index=df_slice.columns),ignore_index=True)#pd.Series(v.columns, index=v.columns)
+                elif season == 'resample': 
+                    rows = list(range(53-df_slice.shape[0]))
+                    df = df_slice.loc[df_slice.index.tolist() + rows]
+                    df = df.append(pd.Series([float(k+str(i)) for i in df.columns],index=df.columns),ignore_index=True)#pd.Series(v.columns, index=v.columns)
+                else:   
+                    print('that is not a valid parameter for "season". Valid params are: core_winter, spring or resample')
+                    break
+                arrs.append(df.to_numpy())
+            else: 
+                if not season == 'resample': 
+                    df = v.append(pd.Series([float(k+str(i)) for i in v.columns],index=v.columns),ignore_index=True)#pd.Series(v.columns, index=v.columns)
+                elif season == 'resample': 
+                    rows = list(range(53-v.shape[0]))
+                    df = v.loc[v.index.tolist() + rows]
+                    df = df.append(pd.Series([float(k+str(i)) for i in df.columns],index=df.columns),ignore_index=True)#pd.Series(v.columns, index=v.columns)
+                else:   
+                    print('that is not a valid parameter for "season". Valid params are: core_winter, spring or resample')
+                    break
+                arrs.append(df.to_numpy())
+        except KeyError: 
+            print('that station does not have a year that early (or late)')
+            continue
+        # if not season.lower() == 'core_winter' or season.lower() == 'spring': 
+        #   print(df.shape)
+            
+        #   #df = np.pad(df, ((0,rows),(0,cols)),mode='constant',constant_values=np.nan)
+        #   arrs.append(df.to_numpy())#np.pad(df.to_numpy(), ((0,rows),(0,0)),mode='constant',constant_values=np.nan))
+        # else: 
+        #   print(df.shape)
+        #   arrs.append(df.to_numpy())
+        
+    arr_out= np.concatenate(tuple(arrs),axis=1)
+    return arr_out
+
+    ###################################
+def plot_anomalies(input_dict): 
+    #from the main function- not currently working but used to plot anomolies 
+    for k,v in water_years[0].items(): 
+        #print(v)
+        print(v.iloc[:-1,:-1])
+        df = v.iloc[:-1,:-1]
+        df['average'] = df.mean(axis=1)
+        df['anomaly'] = df['average']-water_years[1] #get the full time series mean for the season of interest
+        # yr_min=int(v.index.min())
+        # yr_max=int(v.index.max())+1
+        # year_list = range(yr_min,yr_max,1)
+        #get start and end year
+        # try:  
+        fig,(ax,ax1) = plt.subplots(2,1, figsize=(5,5))
+        #plt.figure()
+        #   years = [int(i) for i in v.columns if i.isnumeric()]
+        #   print(years)
+        # except:
+        #   print('that one is not a number')
+        #   continue
+        # fig,ax = plt.subplots(figsize=(5,5))
+        # v[v.columns[len(years):]].plot.line(ax=ax,legend=False)
+        #plt.plot(df['anomaly'])
+
+
+        palette = sns.light_palette('Navy', len(df.T.columns.unique()))
+    # for i in range(rows*cols):
+    #   try: 
+    #       count = 0 
+    #       df_slice = df[df['climate_region']==region_list[i]].sort_values('year')
+    #       for j in year_list: 
+        #       df_slice[df_slice['year']==j].sort_values('low_bound').plot.line(x='low_bound',y=variable,ax=axes[i],legend=False,color=list(palette)[count]) #variable denotes first or last day. Can be first_day_mean or last_day_mean
+        #       count +=1
+
+        #   axes[i].set_title(string.capwords(str(region_list[i]).replace('_',' ')))
+        #   axes[i].xaxis.label.set_visible(False)
+            
+        # except IndexError: 
+        #   continue
+        year_list = sorted(df.T.columns.unique())
+
+        norm = mpl.colors.Normalize(vmin=min(year_list),vmax=max(year_list))
+        cmap = sns.light_palette('Navy',len(year_list),as_cmap=True)
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
     
-    # # plt.show()
-    # # plt.close()
+    
+        df['anomaly'].plot.line(ax=ax,legend=False,color='darkblue',lw=2)
+        v.T.plot.line(ax=ax1,legend=False,lw=0.5)#color=list(palette))
+    
+        # put colorbar at desire position
+        #cbar_ax = fig.add_axes([0.95, 0.1, .01, .8])
+        #add colorbar
+        #fig.colorbar(sm,ticks=np.linspace(int(min(year_list)),int(max(year_list))+1,int(len(year_list))+1),boundaries=np.arange(int(min(year_list)),int(max(year_list))+1,1),cax=cbar_ax)
+
+        index_vals=list(df.index.values)
+        ax.set_title(f'SNOTEL station {k} {season} months')
+        ax.set_ylabel(f'Anomaly from {min(index_vals)} to {max(index_vals)} mean (inches SWE)')
+        ax.set_xlabel('Water year')
+        ax1.set_xlabel('Day of winter (Dec-Feb)')
+        ax1.set_ylabel('Daily total SWE (in)')
+        #ax.set_xticks(year_list)
+        #ax.set_xticklabels(year_list)
+        plt.tight_layout()
+        plt.show()
+        plt.close('all')
+   

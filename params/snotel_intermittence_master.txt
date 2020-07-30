@@ -5,7 +5,7 @@
 	"cell_size":"50",
 	"output_filepath": "/vol/v1/general_files/user_files/ben/k_means/temp_files/", 
 	"num_clusters": "10", 
-	"season": "core_winter", 
+	"season": "resample", 
 	"dryer_year":"2015",
 	"wetter_year":"2008", 
 	"read_from_pickle":"true", 
