@@ -80,16 +80,20 @@ def main():
 		dryer_year = variables["dryer_year"]
 		read_from_pickle = variables["read_from_pickle"]
 		pickle_it = variables["pickle_it"]
+		input_csv = variables["input_csv"]
 	#run_prep_training = sys.argv[1].lower() == 'true' 
 	
 	####################
 	#uncomment to run the full archive 
-	results = obtain_data(False,1,path,f'{state}_snotel_data_list_1')[:5]
+	results = obtain_data(False,1,path,f'{state}_snotel_data_list_1')
 	#print([i[parameter].max() for i in results])
 	#print(results)
 	water_years=combine.DataCleaning(results,parameter,new_parameter,start_date,end_date,season)
 	#print(water_years.shape)
-	print(water_years.prepare_data())
+	#print(water_years.prepare_data())
+	viz = combine.SentinelViz(water_years.prepare_data()[0],input_csv) #get the dictionary of water years not the df of all the years which would be index 0
+	#print(viz.clean_gee_data())
+	print(viz.simple_lin_reg_plot())
 
 	
 if __name__ == '__main__':

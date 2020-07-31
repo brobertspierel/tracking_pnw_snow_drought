@@ -14,7 +14,7 @@ import contextily as ctx
 import collections
 from matplotlib.lines import Line2D
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from datetime import datetime
+import datetime
 from dateutil.parser import parse
 import random 
 from sklearn import preprocessing
@@ -189,7 +189,7 @@ class DataCleaning():
             df['date'] = pd.to_datetime(df['date'])
             df = df.set_index('date')
             #df_slice = df.loc['']
-            df[self.parameter] = df[self.parameter].resample('SM').sum()
+            df[self.parameter] = df[self.parameter].resample('W').sum()
             df[self.parameter]=df[self.parameter].round(2)
 
             df = df.dropna()
@@ -210,7 +210,8 @@ class DataCleaning():
             #prep input data 
             df1=self.scaling(df)#self.parameter,self.new_parameter,self.season)
             wy_ls=water_years(df1,self.start_date,self.end_date) #list of dicts
-            print('wy example is: ',len(wy_ls))
+            #print('wy example is: ',wy_ls)
+            pct_change_wy = {k:(v[self.parameter]).pct_change()*100 for k,v in wy_ls.items()}
             concat_ls = []
             for key,value in wy_ls.items():
                  
@@ -225,29 +226,49 @@ class DataCleaning():
                 else: 
                     continue 
             wy_df = pd.concat(concat_ls,axis=1)
-            print(wy_df)
-            wy_df = wy_df.pct_change() * 100
             #print(wy_df)
-            #add some stats cols
-            #wy_df['average'] = wy_df.mean(axis=1)#removed the addition of an average column
-            #season_mean = wy_df['average'].mean()
-            #print('the mean is: ', season_mean)
-            # print(wy_df)
-            # for column in wy_df.columns: 
-            #     print('the column is: ',column)
-            #     wy_df[f'anom_{column}'] = wy_df[column]-wy_df['average']
-            
-            #wy_df['anomaly'] = wy_df.join(wy_df.subtract(wy_df['average'], axis=0), rsuffix='_perc')
-            #wy_df['anomaly'] =  wy_df.subtract(wy_df.mean(axis=1), axis=0)
-            #wy_df['average'] = wy_df.mean(axis=1)
-            #wy_df['std'] = wy_df.std(axis=1)
-            #wy_df['plus_one_std'] = wy_df['average']+wy_df['std']
-            #wy_df['minus_one_std'] = wy_df['average']-wy_df['std']
+            wy_df = wy_df.pct_change() * 100
+           
             station_dict.update({station_id:wy_df}) #removed the transpose
         #pickled = pickle.dump(station_dict, open( f'{filename}', 'ab' ))
         #print(station_dict)
-        return station_dict,wy_df #removed season mean
-
+        return station_dict,pct_change_wy #removed season mean
+class SentinelViz(): 
+    def __init__(self,df_dict,input_csv): 
+        self.df_dict=df_dict
+        self.input_csv=input_csv
+    def clean_gee_data(self): 
+        df = pd.read_csv(self.input_csv,parse_dates=[0])
+        #system:time_start is a GEE default, rename it
+        df.rename(columns={'system:time_start':'date'},inplace=True)
+        #get the week of year
+        df['week_of_year'] = df['date'].dt.week 
+        df['month'] = pd.DatetimeIndex(df['date']).month
+        #get the week of year where October 1 falls for the year of interest 
+        base_week = datetime.datetime(df.date[0].to_pydatetime().year,10,1).isocalendar()[1]
+        df.loc[df.month >= 10,'week_of_year'] = df.week_of_year-base_week
+        #adjust values that are after the first of the calendar year 
+        df.loc[df.month < 10, 'week_of_year'] = df.week_of_year + 12
+        #print(df)
+        return df
+    def simple_lin_reg_plot(self): 
+        #print(self.df_dict)
+        sentinel_df = self.clean_gee_data()
+        sentinel_weeks = sentinel_df.week_of_year.tolist()
+        snotel_df = self.df_dict['526']
+        #create a week of year col
+        snotel_df['week_of_year'] = range(1,(len(snotel_df.index))+1)
+        snotel_df=snotel_df[snotel_df['week_of_year'].isin(sentinel_weeks)]
+        df = pd.concat(list([snotel_df['2017'],sentinel_df['filter']]),axis=1)
+        df.loc[df['2017']>=200,'2017'] = 0
+        print(df)
+        fig,ax = plt.subplots(1,1,figsize=(15,15))
+        #df['anomaly'].plot.line(ax=ax,legend=False,color='darkblue',lw=2)
+        ax.scatter(df['2017'],df['filter'])
+        #ax.plot(self.clean_gee_data()['filter'],color="blue",marker="o")
+        #ax2.set_ylabel("gdpPercap",color="blue",fontsize=14)
+        plt.show()
+        return df
 ##################################################################################
 ##################################################################################
 ##################################################################################
