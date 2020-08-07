@@ -10,6 +10,5 @@
 	"wetter_year":"2008", 
 	"read_from_pickle":"true", 
 	"pickle_it": "true", 
-	"input_csv": "/vol/v1/general_files/user_files/ben/sentinel_1_snow/526_test_site_2017_VV.csv"
-
+	"input_csv": "/vol/v1/general_files/user_files/ben/sentinel_1_snow/OR_snotel_sentinel_1_outputs_count_2014-10-01_2015-07-01.csv"
 	}

@@ -34,6 +34,9 @@ import subprocess
 import pandas as pd
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from tslearn.preprocessing import TimeSeriesScalerMeanVariance, TimeSeriesResampler
+import scipy as sp
+import statsmodels.api as sm
+from scipy import stats
 
 #register_matplotlib_converters()
 
@@ -211,7 +214,7 @@ class DataCleaning():
             df1=self.scaling(df)#self.parameter,self.new_parameter,self.season)
             wy_ls=water_years(df1,self.start_date,self.end_date) #list of dicts
             #print('wy example is: ',wy_ls)
-            pct_change_wy = {k:(v[self.parameter]).pct_change()*100 for k,v in wy_ls.items()}
+            #pct_change_wy = {k:(v[self.parameter]).pct_change()*100 for k,v in wy_ls.items()}
             concat_ls = []
             for key,value in wy_ls.items():
                  
@@ -227,44 +230,105 @@ class DataCleaning():
                     continue 
             wy_df = pd.concat(concat_ls,axis=1)
             #print(wy_df)
-            wy_df = wy_df.pct_change() * 100
+            #wy_df = wy_df.pct_change() * 100
            
             station_dict.update({station_id:wy_df}) #removed the transpose
         #pickled = pickle.dump(station_dict, open( f'{filename}', 'ab' ))
         #print(station_dict)
-        return station_dict,pct_change_wy #removed season mean
+        return station_dict#pct_change_wy #removed season mean
 class SentinelViz(): 
     def __init__(self,df_dict,input_csv): 
         self.df_dict=df_dict
         self.input_csv=input_csv
     def clean_gee_data(self): 
-        df = pd.read_csv(self.input_csv,parse_dates=[0])
-        #system:time_start is a GEE default, rename it
-        df.rename(columns={'system:time_start':'date'},inplace=True)
+        try: 
+            df = pd.read_csv(self.input_csv,parse_dates={'date_time':[1]})
+            print('first df is: ', df)
+            print(df['filter'])
+            print(type(df['date_time'][0]))
+        except: 
+            try: 
+                df = pd.read_csv(self.input_csv,parse_dates=True)
+                print('The cols in your df are: ', df.columns, 'changing the date column...')
+                #system:time_start is a GEE default, rename it
+                df.rename(columns={'system:time_start':'date_time'},inplace=True)
+            except: 
+                print('Something is wrong with the format of your df it looks like: ')
+                df = pd.read_csv(self.input_csv)
+                print(df.head())
+        #the sentinel images in GEE are split into two tiles on a day there is an overpass, combine them. 
+        df1 = df.groupby([df['date_time'].dt.date])['filter'].sum().reset_index()#df.resample('D', on='date_time').sum()
+        
+        #df = df.groupby([df['Date_Time'].dt.date])['B'].mean()
+
+        #df1 = (df.set_index('date').resample('D')['filter'].sum()).reset_index()
+        #print('second df is: ', df1)
+
         #get the week of year
-        df['week_of_year'] = df['date'].dt.week 
-        df['month'] = pd.DatetimeIndex(df['date']).month
+        df1['date_time'] = pd.to_datetime(df1['date_time'])
+        df1['week_of_year'] = df1['date_time'].dt.week 
+        #df1['week_of_year'] = pd.to_datetime(df1['date_time']).dt.week 
+        #df['date'] = pandas.to_datetime(df['date'], unit='s')
+
+        df1['month'] = df1['date_time'].dt.month
+
+        # df1['month'] = pd.DatetimeIndex(df1['date_time']).month
+        #print('third df is: ', df1) 
         #get the week of year where October 1 falls for the year of interest 
-        base_week = datetime.datetime(df.date[0].to_pydatetime().year,10,1).isocalendar()[1]
-        df.loc[df.month >= 10,'week_of_year'] = df.week_of_year-base_week
+        base_week = datetime.datetime(df1.date_time[0].to_pydatetime().year,10,1).isocalendar()[1]
+        #print('base week is: ', base_week)
+        #print(df1.head)
+        df1.loc[df1.month >= 10,'week_of_year'] = df1.week_of_year-base_week
         #adjust values that are after the first of the calendar year 
-        df.loc[df.month < 10, 'week_of_year'] = df.week_of_year + 12
-        #print(df)
-        return df
+        df1.loc[df1.month < 10, 'week_of_year'] = df1.week_of_year + 12
+        #print('fouth df is: ', df1)
+        return df1
+
     def simple_lin_reg_plot(self): 
         #print(self.df_dict)
+        year = '2015'
         sentinel_df = self.clean_gee_data()
         sentinel_weeks = sentinel_df.week_of_year.tolist()
         snotel_df = self.df_dict['526']
+        print('og snotel df is: ',snotel_df)
+
+        #print(sentinel_df)
         #create a week of year col
         snotel_df['week_of_year'] = range(1,(len(snotel_df.index))+1)
-        snotel_df=snotel_df[snotel_df['week_of_year'].isin(sentinel_weeks)]
-        df = pd.concat(list([snotel_df['2017'],sentinel_df['filter']]),axis=1)
-        df.loc[df['2017']>=200,'2017'] = 0
-        print(df)
+    
+        #select only the weeks of the snotel data that coincide with sentinel visits 
+        snotel_df=snotel_df[snotel_df['week_of_year'].isin(sentinel_weeks)].reset_index()
+        #print('input before df is: ', snotel_df)
+        #print(snotel_df[year])
+        #make a dataset that combines the snotel and sentinel data for ease of plotting
+        df = pd.concat(list([snotel_df[year],sentinel_df['filter'].reset_index()]),axis=1)
+        #df.loc[df['2018']>=200,'2018'] = 0
+
+        print('final df is: ',df)
+        #values = {'A': 0, 'B': 1, 'C': 2, 'D': 3}
+        df = df.fillna(value={year:0})
         fig,ax = plt.subplots(1,1,figsize=(15,15))
+        linreg = sp.stats.linregress(df[year],df['filter'])
+        #The regression line can then be added to your plot: -
+
+        
         #df['anomaly'].plot.line(ax=ax,legend=False,color='darkblue',lw=2)
-        ax.scatter(df['2017'],df['filter'])
+        ax.scatter(df[year],df['filter'])
+        ax.plot(np.unique(df[year]), np.poly1d(np.polyfit(df[year], df['filter'], 1))(np.unique(df[year])))
+        ax.set_xlabel('Snow Water Equivalent (in SWE)')
+        ax.set_ylabel('30m Sentinel 1 pixels classified as wet snow')
+        ax.set_title('SNOTEL SWE vs Sentinel 1 wet snow area '+year+' water year')
+        #ax.plot(df['2018'], linreg.intercept + linreg.slope*df['filter'], 'r')
+
+        #diabetes = datasets.load_diabetes()
+        #X = diabetes.data
+        #y = diabetes.target
+
+        X2 = sm.add_constant(df[year])
+        est = sm.OLS(df['filter'], X2)
+        print(est.fit().f_pvalue)
+        #Similarly the r-squared value: -
+        plt.text(10, 1000, 'r2 = '+str(linreg.rvalue))
         #ax.plot(self.clean_gee_data()['filter'],color="blue",marker="o")
         #ax2.set_ylabel("gdpPercap",color="blue",fontsize=14)
         plt.show()

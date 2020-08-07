@@ -90,8 +90,7 @@ def main():
 	#print(results)
 	water_years=combine.DataCleaning(results,parameter,new_parameter,start_date,end_date,season)
 	#print(water_years.shape)
-	#print(water_years.prepare_data())
-	viz = combine.SentinelViz(water_years.prepare_data()[0],input_csv) #get the dictionary of water years not the df of all the years which would be index 0
+	viz = combine.SentinelViz(water_years.prepare_data(),input_csv) #get the dictionary of water years not the df of all the years which would be index 0
 	#print(viz.clean_gee_data())
 	print(viz.simple_lin_reg_plot())
 
