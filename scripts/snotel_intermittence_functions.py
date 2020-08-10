@@ -18,9 +18,6 @@ import datetime
 from dateutil.parser import parse
 import random 
 from sklearn import preprocessing
-from scipy.spatial.distance import euclidean
-from fastdtw import fastdtw
-from numpy import copy
 import matplotlib
 from colour import Color
 from pylab import cm
@@ -44,78 +41,92 @@ from scipy import stats
 ################################################################################################
 ################################################################################################
 ################################################################################################
-#these functions are used to get snotel data, clean and organize. 
-
-def site_list(csv_in): 
-    """Get a list of all the snotel sites from input csv."""
-    sites=pd.read_csv(csv_in) #read in the list of snotel sites by state
-    try: 
-        sites['site num']=sites['site name'].str.extract(r"\((.*?)\)") #strip the site numbers from the column with the name and number
-        site_ls= sites['site num'].tolist()
-        print('try')
-        #print(site_ls)
-    except KeyError:  #this was coming from the space instead of _. Catch it and move on. 
-        sites['site num']=sites['site_name'].str.extract(r"\((.*?)\)") #strip the site numbers from the column with the name and number
-        site_ls= sites['site num'].tolist()
-        print('except')
-    
-    return (sites,site_ls)
-
-def get_snotel_data(station, parameter,start_date,end_date): #create a function that pulls down snotel data
-    """Collect snotel data from NRCS API. The guts of the following code block comes from: 
-    https://pypi.org/project/climata/. It is a Python library called climata that was developed to pull down time series 
-    data from various government-maintained networks."""
-
-    data = StationDailyDataIO(
-        station=station, #station id
-        start_date=start_date, 
-        end_date=end_date,
-        parameter=parameter #assign parameter- need to double check the one for swe
-    )
-    #Display site information and time series data
-
-    for series in data: 
-        snow_var=pd.DataFrame([row.value for row in series.data]) #create a dataframe of the variable of interest
-        date=pd.DataFrame([row.date for row in series.data]) #get a dataframe of dates
-    df=pd.concat([date,snow_var],axis=1) #concat the dataframes
-    df.columns=['date',f'{parameter}'] #rename columns
-    df['year'] = pd.DatetimeIndex(df['date']).year
-    df['month'] = pd.DatetimeIndex(df['date']).month
-    df['day'] = pd.DatetimeIndex(df['date']).day
-    #df['month'] = df['month'].astype(np.int64)
-    df['id']=station.partition(':')[0] #create an id column from input station 
-    return df  
-
-def snotel_compiler(sites,state,parameter,start_date,end_date,write_out,version):
-    """Create a list of dataframes. Each df contains the info for one station in a given state. It is intended to put all 
-    of the data from one state into one object."""
-    df_ls = []
-    missing = []
-    count = 0
-    for i in sites: 
+def make_site_list(input_csv): 
+        """Get a list of all the snotel sites from input csv."""
+        sites=pd.read_csv(input_csv) #read in the list of snotel sites by state
         try: 
-            df=get_snotel_data(f'{i}:{state}:SNTL',f'{parameter}',f'{start_date}',f'{end_date}')
-            df_ls.append(df)
-        except UnboundLocalError as error: 
-            print(f'{i} station data is missing')
-            missing.append(i) 
-            continue
-        count +=1
-        print(count)
-    if write_out: 
-        print('the len of df_ls is: ' + str(len(df_ls)))
-        pickle_data=pickle.dump(df_ls, open( f'{state}_{parameter}_snotel_data_list_{version}', 'ab' ))
-        print('left if statement')
-    else: 
-        print('went to else statement')
-        return df_ls
-    return pickle_data
+            sites['site num']=sites['site name'].str.extract(r"\((.*?)\)") #strip the site numbers from the column with the name and number
+            site_ls= sites['site num'].tolist()
+            #print('try')
+            #print(site_ls)
+        except KeyError:  #this was coming from the space instead of _. Catch it and move on. 
+            sites['site num']=sites['site_name'].str.extract(r"\((.*?)\)") #strip the site numbers from the column with the name and number
+            site_ls= sites['site num'].tolist()
+            print('except')
+        
+        return (sites,site_ls)
 
-def pickle_opener(version,state,filepath,filename): 
-    """If the 'True' argument is specified for snotel_compiler you need this function to read that pickled
-    object back in."""
-    df_ls = pickle.load(open(filepath/filename,'rb'))#pickle.load( open( filepath/f'{state}_snotel_data_list_{version}', 'rb' ) )
-    return df_ls
+class CollectData(): 
+    #these functions are used to get snotel data, clean and organize. 
+
+    def __init__(self,station_csv,parameter,start_date,end_date,state,site_list,write_out,output_filepath): 
+        self.station_csv = station_csv
+        #self.station = station
+        self.parameter = parameter
+        self.start_date = start_date
+        self.end_date = end_date
+        self.state = state
+        self.site_list = site_list
+        self.output_filepath = output_filepath
+        self.write_out = write_out #a boolean dictating whether to pickle the collected data 
+
+    def get_snotel_data(self,station):#station, parameter,start_date,end_date): #create a function that pulls down snotel data
+        """Collect snotel data from NRCS API. The guts of the following code block comes from: 
+        https://pypi.org/project/climata/. It is a Python library called climata that was developed to pull down time series 
+        data from various government-maintained networks."""
+
+        data = StationDailyDataIO(
+            station=station, #station id
+            start_date=self.start_date, 
+            end_date=self.end_date,
+            parameter=self.parameter #assign parameter
+        )
+        #Display site information and time series data
+
+        for series in data: 
+            snow_var=pd.DataFrame([row.value for row in series.data]) #create a dataframe of the variable of interest
+            date=pd.DataFrame([row.date for row in series.data]) #get a dataframe of dates
+        df=pd.concat([date,snow_var],axis=1) #concat the dataframes
+        df.columns=['date',f'{self.parameter}'] #rename columns
+        df['year'] = pd.DatetimeIndex(df['date']).year
+        df['month'] = pd.DatetimeIndex(df['date']).month
+        df['day'] = pd.DatetimeIndex(df['date']).day
+        #df['month'] = df['month'].astype(np.int64)
+        df['id']=station.partition(':')[0] #create an id column from input station 
+        return df  
+
+    def snotel_compiler(self):#,parameter,start_date,end_date,write_out):
+        """Create a list of dataframes. Each df contains the info for one station in a given state. It is intended to put all 
+        of the data from one state into one object."""
+        df_ls = []
+        missing = []
+        count = 0
+        for i in self.site_list: 
+            try: 
+                df=self.get_snotel_data(f'{i}:{self.state}:SNTL')#this might need to be adjusted depending on how these are called ,f'{self.parameter}',f'{self.start_date}',f'{self.end_date}')
+                df_ls.append(df)
+            except UnboundLocalError as error: 
+                print(f'{i} station data is missing')
+                missing.append(i) 
+                continue
+            count +=1
+            print(count)
+        if self.write_out.lower() == 'true': 
+            print('the len of df_ls is: ' + str(len(df_ls)))
+            filename = self.output_filepath+f'{self.state}_{self.parameter}_snotel_data_list'
+            pickle_data=pickle.dump(df_ls, open(filename,'ab'))
+            #print('left if statement')
+        else: 
+            print('did not write data to pickle')
+            return df_ls
+        return filename
+
+    def pickle_opener(self): 
+        """If the 'True' argument is specified for snotel_compiler you need this function to read that pickled
+        object back in."""
+        filename = self.output_filepath+f'{self.state}_{self.parameter}_snotel_data_list'
+        df_ls = pickle.load(open(filename,'rb'))#pickle.load( open( filepath/f'{state}_snotel_data_list_{version}', 'rb' ) )
+        return df_ls
 
 
 def water_years(input_df,start_date,end_date): 
@@ -137,6 +148,97 @@ def water_years(input_df,start_date,end_date):
         df_ls.append(df_dict) #append the dicts to a list
         
     return df_dict
+# def site_list(csv_in): 
+#     """Get a list of all the snotel sites from input csv."""
+#     sites=pd.read_csv(csv_in) #read in the list of snotel sites by state
+#     try: 
+#         sites['site num']=sites['site name'].str.extract(r"\((.*?)\)") #strip the site numbers from the column with the name and number
+#         site_ls= sites['site num'].tolist()
+#         print('try')
+#         #print(site_ls)
+#     except KeyError:  #this was coming from the space instead of _. Catch it and move on. 
+#         sites['site num']=sites['site_name'].str.extract(r"\((.*?)\)") #strip the site numbers from the column with the name and number
+#         site_ls= sites['site num'].tolist()
+#         print('except')
+    
+#     return (sites,site_ls)
+
+# def get_snotel_data(station, parameter,start_date,end_date): #create a function that pulls down snotel data
+#     """Collect snotel data from NRCS API. The guts of the following code block comes from: 
+#     https://pypi.org/project/climata/. It is a Python library called climata that was developed to pull down time series 
+#     data from various government-maintained networks."""
+
+#     data = StationDailyDataIO(
+#         station=station, #station id
+#         start_date=start_date, 
+#         end_date=end_date,
+#         parameter=parameter #assign parameter- need to double check the one for swe
+#     )
+#     #Display site information and time series data
+
+#     for series in data: 
+#         snow_var=pd.DataFrame([row.value for row in series.data]) #create a dataframe of the variable of interest
+#         date=pd.DataFrame([row.date for row in series.data]) #get a dataframe of dates
+#     df=pd.concat([date,snow_var],axis=1) #concat the dataframes
+#     df.columns=['date',f'{parameter}'] #rename columns
+#     df['year'] = pd.DatetimeIndex(df['date']).year
+#     df['month'] = pd.DatetimeIndex(df['date']).month
+#     df['day'] = pd.DatetimeIndex(df['date']).day
+#     #df['month'] = df['month'].astype(np.int64)
+#     df['id']=station.partition(':')[0] #create an id column from input station 
+#     return df  
+
+# def snotel_compiler(sites,state,parameter,start_date,end_date,write_out,version):
+#     """Create a list of dataframes. Each df contains the info for one station in a given state. It is intended to put all 
+#     of the data from one state into one object."""
+#     df_ls = []
+#     missing = []
+#     count = 0
+#     for i in sites: 
+#         try: 
+#             df=get_snotel_data(f'{i}:{state}:SNTL',f'{parameter}',f'{start_date}',f'{end_date}')
+#             df_ls.append(df)
+#         except UnboundLocalError as error: 
+#             print(f'{i} station data is missing')
+#             missing.append(i) 
+#             continue
+#         count +=1
+#         print(count)
+#     if write_out: 
+#         print('the len of df_ls is: ' + str(len(df_ls)))
+#         pickle_data=pickle.dump(df_ls, open( f'{state}_{parameter}_snotel_data_list_{version}', 'ab' ))
+#         print('left if statement')
+#     else: 
+#         print('went to else statement')
+#         return df_ls
+#     return pickle_data
+
+# def pickle_opener(version,state,filepath,filename): 
+#     """If the 'True' argument is specified for snotel_compiler you need this function to read that pickled
+#     object back in."""
+#     df_ls = pickle.load(open(filepath/filename,'rb'))#pickle.load( open( filepath/f'{state}_snotel_data_list_{version}', 'rb' ) )
+#     return df_ls
+
+
+# def water_years(input_df,start_date,end_date): 
+#     """Cut dataframes into water years. The output of this function is a list of dataframes with each dataframe
+#     representing a year of data for a single station. """
+
+#     df_ls=[]
+#     df_dict={}
+
+#     for year in range(int(start_date[0:4])+1,int(end_date[0:4])): #loop through years
+#         #df_dict={}
+#         #convert starting and ending dates to datetime objects for slicing the data up by water year
+#         startdate = pd.to_datetime(f'{year-1}-10-01').date()
+#         enddate = pd.to_datetime(f'{year}-09-30').date()
+#         inter = input_df.set_index(['date']) #this is kind of a dumb addition, I am sure there is a better way to do this
+#         wy=inter.loc[startdate:enddate] #slice the water year
+#         wy.reset_index(inplace=True)#make the index the index again
+#         df_dict.update({str(year):wy})
+#         df_ls.append(df_dict) #append the dicts to a list
+        
+#     return df_dict
 
 
 ################################################################################################
@@ -145,6 +247,7 @@ def water_years(input_df,start_date,end_date):
 #data prep functions
 
 class DataCleaning(): 
+    """Get snotel data and clean, organize and prep for plotting."""
     def __init__(self,input_ls,parameter,new_parameter,start_date,end_date,season): 
             self.input_ls=input_ls
             self.parameter=parameter
@@ -154,23 +257,7 @@ class DataCleaning():
             self.season = season 
     def scaling(self,df):#df,parameter,new_parameter,season):
         """Define a scaler to change data to 0-1 scale."""
-        
-        
-        #df[f'{parameter}'] =df[f'{parameter}'].replace(0,np.nan)
-         
-        #df[new_parameter] = df[f'{parameter}'].rolling(7).mean()
-        #df[new_parameter] = df[parameter].rolling(7).var()*1000
         #df[new_parameter] = df[parameter].rolling(7).mean()
-        
-        # min_val=df[new_parameter].min()
-        # max_val=df[new_parameter].max()
-        # df[new_parameter] = ((df[new_parameter]-min_val)/(max_val-min_val))#.rolling(7).var()
-        #df[new_parameter] = np.squeeze(TimeSeriesScalerMeanVariance().fit_transform(df[new_parameter].to_numpy()))
-
-        #df[new_parameter] = df[new_parameter]*1000
-        #df[new_parameter] = df[new_parameter].replace(np.nan,0)
-        #print('df is ',df)
-        ####################
         #added in 06042020
         #select core winter months
         if self.season.lower() == 'core_winter': 
@@ -286,7 +373,7 @@ class SentinelViz():
 
     def simple_lin_reg_plot(self): 
         #print(self.df_dict)
-        year = '2015'
+        year = '2018'
         sentinel_df = self.clean_gee_data()
         sentinel_weeks = sentinel_df.week_of_year.tolist()
         snotel_df = self.df_dict['526']

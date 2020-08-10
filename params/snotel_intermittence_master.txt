@@ -2,13 +2,12 @@
 	"state_shapefile":"/vol/v1/general_files/user_files/ben/k_means/temp_files/oregon_state_grid_reprojected_epsg_4326.shp",
 	"pnw_shapefile":"None",
 	"epsg": "4326",
-	"cell_size":"50",
-	"output_filepath": "/vol/v1/general_files/user_files/ben/k_means/temp_files/", 
-	"num_clusters": "10", 
+	"output_filepath": "/vol/v1/general_files/user_files/ben/sentinel_1_snow/pickles/", 
 	"season": "resample", 
-	"dryer_year":"2015",
-	"wetter_year":"2008", 
-	"read_from_pickle":"true", 
-	"pickle_it": "true", 
-	"input_csv": "/vol/v1/general_files/user_files/ben/sentinel_1_snow/OR_snotel_sentinel_1_outputs_count_2014-10-01_2015-07-01.csv"
-	}
+	"input_csv": "/vol/v1/general_files/user_files/ben/sentinel_1_snow/OR_snotel_sentinel_1_outputs_count_2017-10-01_2018-07-01.csv", 
+	"stations":"/vol/v1/general_files/user_files/ben/oregon_snotel_sites.csv",
+	"parameter":"WTEQ", 
+	"start_date":"1985-10-01",  
+	"end_date":"2019-09-30", 
+	"write_out":"true" 
+}

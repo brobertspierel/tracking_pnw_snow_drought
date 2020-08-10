@@ -1,0 +1,95 @@
+# def obtain_data(bool,version,filepath): 
+# 	"""Unpickles pickled snotel data from the snotel API."""
+# 	if bool: 
+# 		#get new data
+# 		pickle_results=combine.snotel_compiler(sites_ids,state,parameter,start_date,end_date,True) #this generates a list of dataframes of all of the snotel stations that have data for a given state
+# 		results=combine.pickle_opener(state,filepath)
+# 		return results
+# 	else: 
+# 		#use pickled data 
+# 		results=combine.pickle_opener(state,filepath)
+# 		#print (len(results))
+# 		return results
+############################################################################################
+############################################################################################
+############################################################################################
+#assign some global variables
+#path = Path('/vol/v1/general_files/user_files/ben/')
+
+#uncomment to run other things- just getting the data that we dont need right now
+#sites_ids = combine.site_list(path/'oregon_snotel_sites.csv')[1] #this is getting a list of just the snotel site ids. You can grab a list slice to restrict how big results gets below. 
+#######################################
+#uncomment when running the full archive 
+# sites_full = combine.site_list(path/'oregon_snotel_sites.csv')[0] #this is getting the full df of oregon (right now) snotel sites
+# #print(type(sites_full))
+# station_list = pd.read_csv(path/'stations_of_interest.csv')
+# station_list = station_list['oregon'].dropna()
+# station_list = station_list.tolist()
+# station_list = [str(int(i)) for i in station_list] 
+# parameter = 'WTEQ' 
+# new_parameter = parameter+'_scaled'
+# start_date = "1985-10-01"  
+# end_date = "2019-09-30" 
+# state = sites_full['state'][0] #this is just looking into the df created from the sites and grabbing the state id. This is used to query the specific station
+# change_type='scaled' 
+# station = "526:OR:SNTL" 
+# #assign some global variables
+# #path = Path('/vol/v1/general_files/user_files/ben/')
+
+# #uncomment to run other things- just getting the data that we dont need right now
+# #sites_ids = combine.site_list(path/'oregon_snotel_sites.csv')[1] #this is getting a list of just the snotel site ids. You can grab a list slice to restrict how big results gets below. 
+# #######################################
+# #uncomment when running the full archive 
+# sites_full = combine.site_list(path/'oregon_snotel_sites.csv')[0] #this is getting the full df of oregon (right now) snotel sites
+# #print(type(sites_full))
+# station_list = pd.read_csv(path/'stations_of_interest.csv')
+# station_list = station_list['oregon'].dropna()
+# station_list = station_list.tolist()
+# station_list = [str(int(i)) for i in station_list] 
+# parameter = 'WTEQ' 
+# new_parameter = parameter+'_scaled'
+# start_date = "1985-10-01"  
+# end_date = "2019-09-30" 
+# state = sites_full['state'][0] #this is just looking into the df created from the sites and grabbing the state id. This is used to query the specific station
+# change_type='scaled' 
+# station = "526:OR:SNTL" 
+###################
+#IMPORTANT
+###################
+#this is currently set up so that pickle_results is the function that is hitting the snotel API. specifying the True/False argument
+#dictates whether it pickles the output or just saves in memory. To get a full archive, more sites etc. that line needs to be 
+#uncommented. 
+#change_type='scaled' 
+	#station = "526:OR:SNTL" 
+	####################
+	#uncomment to run the full archive 
+
+#print(type(sites_full))
+	# station_list = pd.read_csv(path/'stations_of_interest.csv')
+	# station_list = station_list['oregon'].dropna()
+	# station_list = station_list.tolist()
+	# station_list = [str(int(i)) for i in station_list] 
+
+
+	#print (len(results))
+		# self.station_csv = station_csv
+  #       self.station = station
+  #       self.parameter = parameter
+  #       self.start_date = start_date
+  #       self.end_date = end_date
+  #       self.state = state
+  #       self.site_list = site_list
+  #       self.write_out = write_out#False,1,path,f'{state}_snotel_data_list_1')   
+	#sites_full = input_data.make_site_list()[0] #this is getting the full df of oregon (right now) snotel sites
+	#print(type(sites_full))
+	# station_list = pd.read_csv(path/'stations_of_interest.csv')
+	# station_list = station_list['oregon'].dropna()
+	# station_list = station_list.tolist()
+	# station_list = [str(int(i)) for i in station_list] 
+	# parameter = 'WTEQ' 
+	# #new_parameter = parameter+'_scaled'
+	# start_date = "1985-10-01"  
+	# end_date = "2019-09-30" 
+	# state = sites_full['state'][0] #this is just looking into the df created from the sites and grabbing the state id. This is used to query the specific station
+	#change_type='scaled' 
+	#station = "526:OR:SNTL" 
