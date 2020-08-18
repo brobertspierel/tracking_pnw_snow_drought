@@ -5,7 +5,7 @@ output_filepath": "/vol/v1/general_files/user_files/ben/sentinel_1_snow/pickles/
 season": one of either 'resample', 'core_winter', or 'spring' these are to determine a subset of the snotel data 
 read_from_pickle":"true", #depreceated? 
 pickle_it": "true", #depreceated? 
-input_csv": "/vol/v1/general_files/user_files/ben/sentinel_1_snow/OR_snotel_sentinel_1_outputs_count_2017-10-01_2018-07-01.csv" #used to get the sentinel 1 outputs from GEE
+csv_dir": used to get the sentinel 1 outputs from GEE
 stations":"/vol/v1/general_files/user_files/ben/oregon_snotel_sites.csv" #csv file outlining the station specific data for snotel stations 
 parameter":"WTEQ" #snotel station param- can be one of WTEQ (SWE in inches), TAVG (average daily temp in F), SNWD (snow depth in inches), SNOW (snowfall inches) more info can be found here: https://www.wcc.nrcs.usda.gov/web_service/AWDB_Web_Service_Reference.htm#elementCodes
 start_date":"1985-10-01" 

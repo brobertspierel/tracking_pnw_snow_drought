@@ -4,10 +4,11 @@
 	"epsg": "4326",
 	"output_filepath": "/vol/v1/general_files/user_files/ben/sentinel_1_snow/pickles/", 
 	"season": "resample", 
-	"input_csv": "/vol/v1/general_files/user_files/ben/sentinel_1_snow/OR_snotel_sentinel_1_outputs_count_2017-10-01_2018-07-01.csv", 
+	"csv_dir": "/vol/v1/general_files/user_files/ben/sentinel_1_snow/full_outputs/", 
 	"stations":"/vol/v1/general_files/user_files/ben/oregon_snotel_sites.csv",
-	"parameter":"WTEQ", 
-	"start_date":"1985-10-01",  
+	"parameter":"PREC", 
+	"start_date":"2014-10-01",  
 	"end_date":"2019-09-30", 
-	"write_out":"true" 
+	"write_out":"false", 
+	"pickles":"/vol/v1/general_files/user_files/ben/sentinel_1_snow/pickles/"
 }

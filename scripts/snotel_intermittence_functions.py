@@ -34,6 +34,7 @@ from tslearn.preprocessing import TimeSeriesScalerMeanVariance, TimeSeriesResamp
 import scipy as sp
 import statsmodels.api as sm
 from scipy import stats
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 #register_matplotlib_converters()
 
@@ -113,7 +114,7 @@ class CollectData():
             print(count)
         if self.write_out.lower() == 'true': 
             print('the len of df_ls is: ' + str(len(df_ls)))
-            filename = self.output_filepath+f'{self.state}_{self.parameter}_snotel_data_list'
+            filename = self.output_filepath+f'{self.state}_{self.parameter}_{self.start_date}_{self.end_date}_snotel_data_list'
             pickle_data=pickle.dump(df_ls, open(filename,'ab'))
             #print('left if statement')
         else: 
@@ -121,10 +122,10 @@ class CollectData():
             return df_ls
         return filename
 
-    def pickle_opener(self): 
+    def pickle_opener(self,filename): 
         """If the 'True' argument is specified for snotel_compiler you need this function to read that pickled
         object back in."""
-        filename = self.output_filepath+f'{self.state}_{self.parameter}_snotel_data_list'
+        #filename = self.output_filepath+f'{self.state}_{self.parameter}_{self.start_date}_{self.end_date}_snotel_data_list'
         df_ls = pickle.load(open(filename,'rb'))#pickle.load( open( filepath/f'{state}_snotel_data_list_{version}', 'rb' ) )
         return df_ls
 
@@ -136,7 +137,7 @@ def water_years(input_df,start_date,end_date):
     df_ls=[]
     df_dict={}
 
-    for year in range(int(start_date[0:4])+1,int(end_date[0:4])): #loop through years
+    for year in range(int(start_date[0:4])+1,int(end_date[0:4])+1): #loop through years, add one because its exclusive 
         #df_dict={}
         #convert starting and ending dates to datetime objects for slicing the data up by water year
         startdate = pd.to_datetime(f'{year-1}-10-01').date()
@@ -148,97 +149,6 @@ def water_years(input_df,start_date,end_date):
         df_ls.append(df_dict) #append the dicts to a list
         
     return df_dict
-# def site_list(csv_in): 
-#     """Get a list of all the snotel sites from input csv."""
-#     sites=pd.read_csv(csv_in) #read in the list of snotel sites by state
-#     try: 
-#         sites['site num']=sites['site name'].str.extract(r"\((.*?)\)") #strip the site numbers from the column with the name and number
-#         site_ls= sites['site num'].tolist()
-#         print('try')
-#         #print(site_ls)
-#     except KeyError:  #this was coming from the space instead of _. Catch it and move on. 
-#         sites['site num']=sites['site_name'].str.extract(r"\((.*?)\)") #strip the site numbers from the column with the name and number
-#         site_ls= sites['site num'].tolist()
-#         print('except')
-    
-#     return (sites,site_ls)
-
-# def get_snotel_data(station, parameter,start_date,end_date): #create a function that pulls down snotel data
-#     """Collect snotel data from NRCS API. The guts of the following code block comes from: 
-#     https://pypi.org/project/climata/. It is a Python library called climata that was developed to pull down time series 
-#     data from various government-maintained networks."""
-
-#     data = StationDailyDataIO(
-#         station=station, #station id
-#         start_date=start_date, 
-#         end_date=end_date,
-#         parameter=parameter #assign parameter- need to double check the one for swe
-#     )
-#     #Display site information and time series data
-
-#     for series in data: 
-#         snow_var=pd.DataFrame([row.value for row in series.data]) #create a dataframe of the variable of interest
-#         date=pd.DataFrame([row.date for row in series.data]) #get a dataframe of dates
-#     df=pd.concat([date,snow_var],axis=1) #concat the dataframes
-#     df.columns=['date',f'{parameter}'] #rename columns
-#     df['year'] = pd.DatetimeIndex(df['date']).year
-#     df['month'] = pd.DatetimeIndex(df['date']).month
-#     df['day'] = pd.DatetimeIndex(df['date']).day
-#     #df['month'] = df['month'].astype(np.int64)
-#     df['id']=station.partition(':')[0] #create an id column from input station 
-#     return df  
-
-# def snotel_compiler(sites,state,parameter,start_date,end_date,write_out,version):
-#     """Create a list of dataframes. Each df contains the info for one station in a given state. It is intended to put all 
-#     of the data from one state into one object."""
-#     df_ls = []
-#     missing = []
-#     count = 0
-#     for i in sites: 
-#         try: 
-#             df=get_snotel_data(f'{i}:{state}:SNTL',f'{parameter}',f'{start_date}',f'{end_date}')
-#             df_ls.append(df)
-#         except UnboundLocalError as error: 
-#             print(f'{i} station data is missing')
-#             missing.append(i) 
-#             continue
-#         count +=1
-#         print(count)
-#     if write_out: 
-#         print('the len of df_ls is: ' + str(len(df_ls)))
-#         pickle_data=pickle.dump(df_ls, open( f'{state}_{parameter}_snotel_data_list_{version}', 'ab' ))
-#         print('left if statement')
-#     else: 
-#         print('went to else statement')
-#         return df_ls
-#     return pickle_data
-
-# def pickle_opener(version,state,filepath,filename): 
-#     """If the 'True' argument is specified for snotel_compiler you need this function to read that pickled
-#     object back in."""
-#     df_ls = pickle.load(open(filepath/filename,'rb'))#pickle.load( open( filepath/f'{state}_snotel_data_list_{version}', 'rb' ) )
-#     return df_ls
-
-
-# def water_years(input_df,start_date,end_date): 
-#     """Cut dataframes into water years. The output of this function is a list of dataframes with each dataframe
-#     representing a year of data for a single station. """
-
-#     df_ls=[]
-#     df_dict={}
-
-#     for year in range(int(start_date[0:4])+1,int(end_date[0:4])): #loop through years
-#         #df_dict={}
-#         #convert starting and ending dates to datetime objects for slicing the data up by water year
-#         startdate = pd.to_datetime(f'{year-1}-10-01').date()
-#         enddate = pd.to_datetime(f'{year}-09-30').date()
-#         inter = input_df.set_index(['date']) #this is kind of a dumb addition, I am sure there is a better way to do this
-#         wy=inter.loc[startdate:enddate] #slice the water year
-#         wy.reset_index(inplace=True)#make the index the index again
-#         df_dict.update({str(year):wy})
-#         df_ls.append(df_dict) #append the dicts to a list
-        
-#     return df_dict
 
 
 ################################################################################################
@@ -246,8 +156,11 @@ def water_years(input_df,start_date,end_date):
 ################################################################################################
 #data prep functions
 
-class DataCleaning(): 
-    """Get snotel data and clean, organize and prep for plotting."""
+class StationDataCleaning(): 
+    """Get snotel data and clean, organize and prep for plotting.
+    This takes as input the list/dict of dataframes that is produced and pickled in the collect data class. 
+    Run from snotel_intermittence_master_V5 using snotel_intermittence_master.txt as the param file. 
+    """
     def __init__(self,input_ls,parameter,new_parameter,start_date,end_date,season): 
             self.input_ls=input_ls
             self.parameter=parameter
@@ -255,97 +168,113 @@ class DataCleaning():
             self.start_date=start_date
             self.end_date=end_date
             self.season = season 
-    def scaling(self,df):#df,parameter,new_parameter,season):
-        """Define a scaler to change data to 0-1 scale."""
+    def scaling(self,df):
+        """Select a subset of the data and/or resample."""
         #df[new_parameter] = df[parameter].rolling(7).mean()
-        #added in 06042020
+
         #select core winter months
         if self.season.lower() == 'core_winter': 
             df = df[df['month'].isin(['12','01','02'])]
-            #print(df)
-            #print(df.columns)
-            #use this to resample to a different temporal resolution
-            # df['date'] = pd.to_datetime(df['date'])
-            # #df['date'] = pd.to_datetime(df['date'])
-            # df = df.set_index('date')
-            # df[parameter] = df[parameter].resample('M').mean()
-            # df = df.dropna()
-
-            # df = df.reset_index()
         #select spring months
         elif self.season.lower() == 'spring': 
             df = df[df['month'].isin(['03','04','05'])]
+
         elif self.season.lower() == 'resample': 
             df['date'] = pd.to_datetime(df['date'])
             df = df.set_index('date')
             #df_slice = df.loc['']
-            df[self.parameter] = df[self.parameter].resample('W').sum()
-            df[self.parameter]=df[self.parameter].round(2)
-
+            if 'TAVG' in list(df.columns): #we don't want to sum the avg temps for a week because we will end up with a crazy value
+                df[self.parameter] = df[self.parameter].resample('W').mean()
+                df[self.parameter]=df[self.parameter].round(2)
+            else: #any other of snow depth, swe or precip we can sum so do that
+                df[self.parameter] = df[self.parameter].resample('W').sum()
+                df[self.parameter]=df[self.parameter].round(2)
             df = df.dropna()
             #print(df)
             df = df.reset_index()
         else: 
-            print('that is not a valid parameter for season')
+            print('That is not a valid parameter for season. Choose one of: resample, core_winter or spring')
 
         return df
 
-    def prepare_data(self):#input_ls,parameter,new_parameter,start_date,end_date,season): 
+    def prepare_data(self,current_param):#input_ls,parameter,new_parameter,start_date,end_date,season): 
         """This should change the water year lists into dataframes so that they can be fed in as dataframes with every year, one for every station."""
         station_dict = {}
         #print('df is ',input_ls[2])
 
         for df in self.input_ls: #the input_ls should be the list of dataframes from results. NOTE: change this when you're ready to run the whole archive 
             station_id=df['id'][0]
+            print(df)
             #prep input data 
             df1=self.scaling(df)#self.parameter,self.new_parameter,self.season)
             wy_ls=water_years(df1,self.start_date,self.end_date) #list of dicts
-            #print('wy example is: ',wy_ls)
+            print('wy example is: ',wy_ls)
             #pct_change_wy = {k:(v[self.parameter]).pct_change()*100 for k,v in wy_ls.items()}
             concat_ls = []
             for key,value in wy_ls.items():
                  
                 if not value.empty: 
-                    df2=value.drop(['date','year','month','id'],axis=1)
+                    try: 
+                        df2=value.drop(['date','year','month','id','day'],axis=1)
+                    except KeyError: 
+                        raise KeyError('Double check the cols in the input df, currently trying to drop date, year, month, id and day')
                     #df1 = value[new_parameter]
                     #df2 = df2.replace(np.nan,0) #this might need to be changed
 
-                    df2=df2.rename(columns={self.parameter:key}) #changed from new_param
+                    df2=df2.rename(columns={self.parameter:self.parameter+'_'+key}) #changed from new_param
                     concat_ls.append(df2)
                     
                 else: 
                     continue 
             wy_df = pd.concat(concat_ls,axis=1)
-            #print(wy_df)
-            #wy_df = wy_df.pct_change() * 100
-           
+            #wy_df = wy_df.pct_change() * 100           
             station_dict.update({station_id:wy_df}) #removed the transpose
         #pickled = pickle.dump(station_dict, open( f'{filename}', 'ab' ))
         #print(station_dict)
-        return station_dict#pct_change_wy #removed season mean
-class SentinelViz(): 
-    def __init__(self,df_dict,input_csv): 
-        self.df_dict=df_dict
-        self.input_csv=input_csv
-    def clean_gee_data(self): 
+        return station_dict #pct_change_wy #removed season mean
+
+class PrepPlottingData(): 
+    """Create visulization of simple or multiple linear regression with sentinel 1 wet snow outputs and snotel data."""
+    def __init__(self,input_df,input_csv,station_id,gee_data): 
+        self.input_df=input_df #snotel data 
+        self.input_csv=input_csv #sentinel 1 data from GEE
+        self.station_id = station_id
+        self.gee_data = gee_data 
+        #self.input_dict = input_dict #this is the result of each snotel param
+    def csv_to_df(self): 
+        #automatically try to parse dates- default will be from the system:time_index col which is the GEE default 
+        #df = pd.read_csv(self.input_csv,parse_dates={'date_time':[1]})
         try: 
             df = pd.read_csv(self.input_csv,parse_dates={'date_time':[1]})
-            print('first df is: ', df)
-            print(df['filter'])
-            print(type(df['date_time'][0]))
-        except: 
+        except KeyError: 
             try: 
                 df = pd.read_csv(self.input_csv,parse_dates=True)
                 print('The cols in your df are: ', df.columns, 'changing the date column...')
                 #system:time_start is a GEE default, rename it
-                df.rename(columns={'system:time_start':'date_time'},inplace=True)
+                df.rename(columns={'date':'date_time'},inplace=True)
+                print(df)
             except: 
                 print('Something is wrong with the format of your df it looks like: ')
                 df = pd.read_csv(self.input_csv)
                 print(df.head())
-        #the sentinel images in GEE are split into two tiles on a day there is an overpass, combine them. 
-        df1 = df.groupby([df['date_time'].dt.date])['filter'].sum().reset_index()#df.resample('D', on='date_time').sum()
         
+        return df,(df['date_time'].iloc[-2]).year #get the second to last element in case there is a nan. This will still be the water year 
+
+    def clean_gee_data(self): 
+        df = self.gee_data #df of gee data that was read in externally with csv_to_df
+        try: 
+            df = df.loc[df['site_num']==self.station_id]
+           
+        except: 
+            raise KeyError('Doule check your column headers. This should be the site id and the default is site_num.')
+        
+        #the sentinel images in GEE are split into two tiles on a day there is an overpass, combine them. 
+        try: 
+            df1 = df.groupby([df['date_time'].dt.date])['filter'].sum().reset_index() #filter is the default column name 
+            #print('df1 is: ', df1)
+        except:
+            print('something went wrong with the groupby') 
+            raise KeyError('Please double check the column header you are using. The defualt from GEE is filter.')
         #df = df.groupby([df['Date_Time'].dt.date])['B'].mean()
 
         #df1 = (df.set_index('date').resample('D')['filter'].sum()).reset_index()
@@ -354,46 +283,41 @@ class SentinelViz():
         #get the week of year
         df1['date_time'] = pd.to_datetime(df1['date_time'])
         df1['week_of_year'] = df1['date_time'].dt.week 
-        #df1['week_of_year'] = pd.to_datetime(df1['date_time']).dt.week 
-        #df['date'] = pandas.to_datetime(df['date'], unit='s')
-
+        
+        #add a month col
         df1['month'] = df1['date_time'].dt.month
 
-        # df1['month'] = pd.DatetimeIndex(df1['date_time']).month
-        #print('third df is: ', df1) 
         #get the week of year where October 1 falls for the year of interest 
         base_week = datetime.datetime(df1.date_time[0].to_pydatetime().year,10,1).isocalendar()[1]
-        #print('base week is: ', base_week)
-        #print(df1.head)
         df1.loc[df1.month >= 10,'week_of_year'] = df1.week_of_year-base_week
         #adjust values that are after the first of the calendar year 
         df1.loc[df1.month < 10, 'week_of_year'] = df1.week_of_year + 12
-        #print('fouth df is: ', df1)
+
         return df1
 
-    def simple_lin_reg_plot(self): 
-        #print(self.df_dict)
-        year = '2018'
+    def make_plot_dfs(self,year): 
+        #get sentinel data 
         sentinel_df = self.clean_gee_data()
+        #get list of weeks that had a sentinel obs 
         sentinel_weeks = sentinel_df.week_of_year.tolist()
-        snotel_df = self.df_dict['526']
-        print('og snotel df is: ',snotel_df)
-
-        #print(sentinel_df)
+        #get snotel station that aligns with the sentinel data 
+        snotel_df = self.input_df#self.df_dict[f'{self.station_id}']
         #create a week of year col
         snotel_df['week_of_year'] = range(1,(len(snotel_df.index))+1)
-    
-        #select only the weeks of the snotel data that coincide with sentinel visits 
+         #select only the weeks of the snotel data that coincide with sentinel visits 
         snotel_df=snotel_df[snotel_df['week_of_year'].isin(sentinel_weeks)].reset_index()
-        #print('input before df is: ', snotel_df)
-        #print(snotel_df[year])
         #make a dataset that combines the snotel and sentinel data for ease of plotting
-        df = pd.concat(list([snotel_df[year],sentinel_df['filter'].reset_index()]),axis=1)
-        #df.loc[df['2018']>=200,'2018'] = 0
-
-        print('final df is: ',df)
-        #values = {'A': 0, 'B': 1, 'C': 2, 'D': 3}
+        df = pd.concat(list([snotel_df.loc[:, snotel_df.columns.str.contains(str(year))],sentinel_df['filter']]),axis=1) 
         df = df.fillna(value={year:0})
+        
+        return df
+class LinearRegression(): 
+    """Functions to carry out simple and multiple linear regression analysis from a df."""
+
+    def __init__(self,input_df): 
+        self.input_df = input_df
+
+    def simple_lin_reg_plot(self): 
         fig,ax = plt.subplots(1,1,figsize=(15,15))
         linreg = sp.stats.linregress(df[year],df['filter'])
         #The regression line can then be added to your plot: -
@@ -405,21 +329,86 @@ class SentinelViz():
         ax.set_xlabel('Snow Water Equivalent (in SWE)')
         ax.set_ylabel('30m Sentinel 1 pixels classified as wet snow')
         ax.set_title('SNOTEL SWE vs Sentinel 1 wet snow area '+year+' water year')
-        #ax.plot(df['2018'], linreg.intercept + linreg.slope*df['filter'], 'r')
-
-        #diabetes = datasets.load_diabetes()
-        #X = diabetes.data
-        #y = diabetes.target
-
         X2 = sm.add_constant(df[year])
         est = sm.OLS(df['filter'], X2)
         print(est.fit().f_pvalue)
         #Similarly the r-squared value: -
         plt.text(10, 1000, 'r2 = '+str(linreg.rvalue))
-        #ax.plot(self.clean_gee_data()['filter'],color="blue",marker="o")
-        #ax2.set_ylabel("gdpPercap",color="blue",fontsize=14)
+        
         plt.show()
         return df
+
+    def multiple_lin_reg(self): 
+        """Do multiple linear regression analysis of snotel and sentinel 1. Return results as df."""
+        df = self.input_df
+        #df = df[np.isfinite(df).all(1)]
+
+        #df = df[df.replace([np.inf, -np.inf], np.nan).notnull().all(axis=1)]  # .astype(np.float64)
+        #df = self.input_df.fillna(0)
+        # df = self.input_df.replace([np.inf, -np.inf], np.nan).astype(np.float64)
+        # df = df.replace([np.inf, -np.inf], np.nan)
+        # df = df.fillna(0.0)
+        #df = df.dropna(0, how="all")
+        print('df is: ', df)
+        cols = list(df.columns)
+        cols.remove('filter') #always remove filter because this will be the dependent variable 
+        x_cols =  [x for x in cols if not x.startswith('WTEQ') and not x.startswith('PREC')]#only remove a few changing variables to see what's up with multicolinearity [i for i in cols if i not in list(['filter','WTEQ','PREC'])]#[i for i in cols if subs in i] #filter(lambda i: i not in ['filter','*WTEQ','*PREC'], cols) 
+        print(x_cols)
+
+        x = self.input_df[x_cols]  
+        x = x.fillna(0)
+        X_constant = sm.add_constant(x)
+
+        print(x)
+        y = self.input_df['filter']
+        model = sm.OLS(y, x).fit()
+        residuals=model.resid.mean()
+        print(residuals)
+        #predictions = model.predict(x)
+        vif = pd.DataFrame()
+        vif["VIF Factor"] = [variance_inflation_factor(x.values, i) for i in range(x.shape[1])]
+        vif["features"] = x.columns
+        print(vif)
+        print(model.summary())
+        #visualize 
+        sns.pairplot(df)
+        #plt.show()
+        # fitted_vals = model.predict()
+        # resids = model.resid
+
+        # fig, ax = plt.subplots(1,2)
+        
+        # sns.regplot(x=fitted_vals, y=y, lowess=True, ax=ax[0], line_kws={'color': 'red'})
+        # ax[0].set_title('Observed vs. Predicted Values', fontsize=16)
+        # ax[0].set(xlabel='Predicted', ylabel='Observed')
+
+        # sns.regplot(x=fitted_vals, y=resids, lowess=True, ax=ax[1], line_kws={'color': 'red'})
+        # ax[1].set_title('Residuals vs. Predicted Values', fontsize=16)
+        # ax[1].set(xlabel='Predicted', ylabel='Residuals')
+        # plt.show()
+    def linearity_test(model, y):
+        '''
+        Function for visually inspecting the assumption of linearity in a linear regression model.
+        It plots observed vs. predicted values and residuals vs. predicted values.
+        
+        Args:
+        * model - fitted OLS model from statsmodels
+        * y - observed values
+        '''
+        fitted_vals = model.predict()
+        resids = model.resid
+
+        fig, ax = plt.subplots(1,2)
+        
+        sns.regplot(x=fitted_vals, y=y, lowess=True, ax=ax[0], line_kws={'color': 'red'})
+        ax[0].set_title('Observed vs. Predicted Values', fontsize=16)
+        ax[0].set(xlabel='Predicted', ylabel='Observed')
+
+        sns.regplot(x=fitted_vals, y=resids, lowess=True, ax=ax[1], line_kws={'color': 'red'})
+        ax[1].set_title('Residuals vs. Predicted Values', fontsize=16)
+        ax[1].set(xlabel='Predicted', ylabel='Residuals')
+        
+    #linearity_test(lin_reg, y)    
 ##################################################################################
 ##################################################################################
 ##################################################################################
