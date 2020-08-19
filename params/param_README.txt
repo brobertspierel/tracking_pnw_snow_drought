@@ -2,7 +2,7 @@ state_shapefile":"/vol/v1/general_files/user_files/ben/k_means/temp_files/oregon
 pnw_shapefile":"None" #background for mapping 
 epsg": "4326" #output crs
 output_filepath": "/vol/v1/general_files/user_files/ben/sentinel_1_snow/pickles/", 
-season": one of either 'resample', 'core_winter', or 'spring' these are to determine a subset of the snotel data 
+season": one of either 'resample', 'core_winter','full_winter', or 'spring' these are to determine a subset of the snotel data 
 read_from_pickle":"true", #depreceated? 
 pickle_it": "true", #depreceated? 
 csv_dir": used to get the sentinel 1 outputs from GEE

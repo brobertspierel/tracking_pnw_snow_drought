@@ -9,6 +9,7 @@ import pickle
 import pandas as pd
 import glob
 import pyParz
+import matplotlib.pyplot as plt
 
 def run_model(args):
 	station_id,param_dict,start_date,end_date,sentinel_dict = args 
@@ -28,6 +29,43 @@ def run_model(args):
 
 		mlr = combine.LinearRegression(analysis_df).multiple_lin_reg()
 		print(mlr)
+def combine_dfs(sites_ids,param_dict,start_date,end_date): 
+	#station_id,param_dict,start_date,end_date = args
+	dry = {}
+	warm = {}
+	warm_dry = {}
+	for station_id in sites_ids: 
+		print(f'the station id is: {station_id}')
+		combined_df = pd.concat([param_dict['wteq'][station_id],param_dict['prec'][station_id],param_dict['tavg'][station_id]], axis=0).T #right now the col headers are the index because we were calculating anomalies, transpose that
+		small_df = combined_df.tail(1)
+		
+		# dry = small_df.filter(like='WTEQ').columns
+		# dry = dry[dry<=0]
+		# print(small_df)
+		
+		for year in range(int(start_date[0:4])+1,int(end_date[0:4])+1):
+			#print(f'year is {year}')
+			yearly = small_df.filter(like=str(year))
+			#print(yearly)
+			try: 
+				if (yearly[f'WTEQ_{year}'][0] < 0) and (yearly[f'PREC_{year}'][0] < 0) and (yearly[f'TAVG_{year}'][0] < 0): 
+					dry.update({station_id:year})
+				elif (yearly[f'WTEQ_{year}'][0] < 0) and (yearly[f'PREC_{year}'][0] > 0): 
+					warm.update({station_id:year})
+				elif (yearly[f'WTEQ_{year}'][0] < 0) and (yearly[f'PREC_{year}'][0]) < 0 and (yearly[f'TAVG_{year}'][0]) > 0: 
+					warm_dry.update({station_id:year})
+				else: 
+					print(f'station {station_id} for {year} was normal or above average. The swe anom was: {yearly[f"WTEQ_{year}"][0]}')
+			except KeyError:
+				continue 
+
+	#print(dry,warm,warm_dry)
+	# 	small_df=
+	#inter_list = combined_df.index[df['BoolCol'] == True].tolist()
+	#df.filter(like='spike').columns
+	output = {'dry':dry,'warm':warm,'warm_dry':warm_dry}
+	return output
+
 def main():
 	"""Master function for snotel intermittence from SNOTEL and RS data. 
 	Requirements: 
@@ -62,95 +100,66 @@ def main():
 	new_parameter = parameter+'_scaled'
 	state = sites_full['state'][0] #this is just looking into the df created from the sites and grabbing the state id. This is used to query the specific station
 	
-	#create the input data 
-	input_data = combine.CollectData(stations,parameter,start_date,end_date,state,sites_ids, write_out,output_filepath)
+	#create the input data
 	if write_out.lower() == 'true': 
-		#get new data- this requires that the user specify the param
-		pickle_results=input_data.snotel_compiler() #this generates a list of dataframes of all of the snotel stations that have data for a given state
-		results=input_data.pickle_opener()
+		for param in ['WTEQ','PREC','TAVG','SNWD']: 
+			print('current param is: ', param)
+			input_data = combine.CollectData(stations,param,start_date,end_date,state,sites_ids, write_out,output_filepath)
+			#get new data
+			pickle_results=input_data.snotel_compiler() #this generates a list of dataframes of all of the snotel stations that have data for a given state
+		#results=input_data.pickle_opener()
 		# return results
-	else: 
-		#use pickled data 
-		try: 
-			# #params currently considered, either update here or include as a param 
-			# param_list = ['WTEQ','PREC','TAVG','SNWD']
-			# param_dict = {}
-			#read the dfs of each snotel param into a dict for further processing 
-			wteq_wy = combine.StationDataCleaning(input_data.pickle_opener(
-				output_filepath+f'{state}_WTEQ_{start_date}_{end_date}_snotel_data_list'),
-				'WTEQ',new_parameter,start_date,end_date,season)
-			prec_wy = combine.StationDataCleaning(input_data.pickle_opener(
-				output_filepath+f'{state}_PREC_{start_date}_{end_date}_snotel_data_list'),
-				'PREC',new_parameter,start_date,end_date,season)
-			tavg_wy = combine.StationDataCleaning(input_data.pickle_opener(
-				output_filepath+f'{state}_TAVG_{start_date}_{end_date}_snotel_data_list'),
-				'TAVG',new_parameter,start_date,end_date,season)
-			snwd_wy = combine.StationDataCleaning(input_data.pickle_opener(
-				output_filepath+f'{state}_SNWD_{start_date}_{end_date}_snotel_data_list'),
-				'SNWD',new_parameter,start_date,end_date,season)
-			
-		except: 
-			raise FileNotFound('Something is wrong with the pickled file you requested, double check that file exists and run again')
+	#use pickled data 
+	try: 
+		# #params currently considered, either update here or include as a param 
+		# param_list = ['WTEQ','PREC','TAVG','SNWD']
+		# param_dict = {}
+
+		#read the dfs of each snotel param into a dict for further processing 
+		wteq_wy = combine.StationDataCleaning(combine.pickle_opener(
+			output_filepath+f'{state}_WTEQ_{start_date}_{end_date}_snotel_data_list'),
+			'WTEQ',season)
+		prec_wy = combine.StationDataCleaning(combine.pickle_opener(
+			output_filepath+f'{state}_PREC_{start_date}_{end_date}_snotel_data_list'),
+			'PREC',season)
+		tavg_wy = combine.StationDataCleaning(combine.pickle_opener(
+			output_filepath+f'{state}_TAVG_{start_date}_{end_date}_snotel_data_list'),
+			'TAVG',season)
+		snwd_wy = combine.StationDataCleaning(combine.pickle_opener(
+			output_filepath+f'{state}_SNWD_{start_date}_{end_date}_snotel_data_list'),
+			'SNWD',season)
+		
+	except FileNotFoundError: 
+		raise FileNotFoundError('Something is wrong with the pickled file you requested, double check that file exists and run again')
 	#make outputs 
 	#water_years=combine.StationDataCleaning(results,parameter,new_parameter,start_date,end_date,season)
 	#generate a dictionary with each value being a dict of site_id:df of years of param
-	param_dict = {'wteq':wteq_wy.prepare_data('WTEQ'),'prec':prec_wy.prepare_data('PREC'),
-	'tavg':tavg_wy.prepare_data('TAVG'),'snwd':snwd_wy.prepare_data('SNWD')}
-	station_dict = {}
-	#pickle_files = [i for i in glob.glob(pickles+'*2014*')] #just pick something that all of the subset file names have 
-	sentinel_dict = {}
-	#read in the sentinel csvs and get the water year
-	for file in glob.glob(csv_dir+'*.csv'): 
-		sentinel_data = combine.PrepPlottingData(None,file,None,None).csv_to_df()
-		sentinel_dict.update({str(sentinel_data[1]):sentinel_data[0]})
-	#go through the station ids and do the regression
-	# 	ef clustering(args):
-	#     """Compare station time series against reference dataset and determine time series type. 
-	#     """
-	#     key,x,y = args #x is the station dataframe and y is the dictionary of training dataframes
-	#     return [key,x[key].apply(lambda column: faster(y,column),axis=0).reset_index()]
+	param_dict = {'wteq':wteq_wy.prepare_data('true',start_date,end_date),'prec':prec_wy.prepare_data('true',start_date,end_date),
+	'tavg':tavg_wy.prepare_data('true',start_date,end_date),'snwd':snwd_wy.prepare_data('true',start_date,end_date)}
+	output=combine_dfs(sites_ids,param_dict,start_date,end_date)
+	print(output)
+	plt.bar(output['dry'].values(), list(output['dry'].keys()), color='g')
+	plt.show()
+	#print(param_dict['wteq'])
+	#print(param_dict)
+	#output = pyParz.foreach(sites_ids,combine_dfs,args=[param_dict,start_date,end_date],numThreads=25) 
+	#print(output[1])
+		#combined_df = pd.concat([param_dict['wteq'][station],param_dict['prec'][station],param_dict['tavg'][station]], axis=0)
+		# wteq = 
+		# prec = param_dict['prec'][station]
+		# tavg = param_dict['tavg'][station]
 
-	# def cluster_parallel(train_dict,classify_data,filepath,njobs): 
-	#     """Paralellizes the clustering function above."""
-	#     #get data from pickled dictionary of dataframes
-	#     # if from_pickle: 
-	#     #     df_dict = pickle_opener(1,None,filepath,filename_in)
-	#     # else: 
-	#     df_dict = classify_data
-	#     print('working...')
-	#     #run wrapper pyParz for multiprocessing pool function 
-	#     results_classes=pyParz.foreach(list(df_dict.keys()),clustering,args=[df_dict,train_dict],numThreads=njobs)
-	output = pyParz.foreach(sites_ids,run_model,args=[param_dict,start_date,end_date,sentinel_dict],numThreads=20)
-	# for station_id in sites_ids[:2]: #make parallel
-	# 	station_ls = []
-	# 	for k,v in param_dict.items(): #go through the possible snotel params  
-	# 		station_ls.append(v[station_id])
-	# 	station_df = pd.concat(station_ls,axis=1) #make a new df that has the years of interest and the snotel params 
-	# 	for year in range(int(start_date[0:4])+1,int(end_date[0:4])+1): #run analysis annually- this will likely need to be changed
-	# 		#select the params for that year 
-	# 		try: 
-	# 			snotel_year = station_df.loc[:, station_df.columns.str.contains(str(year))]
-	# 			analysis_df = combine.PrepPlottingData(station_df,None,int(station_id),sentinel_dict[str(year)]).make_plot_dfs(str(year))
-	# 			#print(analysis_df.head())
-	# 		except KeyError: 
-	# 			print('That file may not exist')
-	# 			continue 
+	#uncomment to run regressions 
+	# station_dict = {}
+	# #pickle_files = [i for i in glob.glob(pickles+'*2014*')] #just pick something that all of the subset file names have 
+	# sentinel_dict = {}
+	# #read in the sentinel csvs and get the water year
+	# for file in glob.glob(csv_dir+'*.csv'): 
+	# 	sentinel_data = combine.PrepPlottingData(None,file,None,None).csv_to_df()
+	# 	sentinel_dict.update({str(sentinel_data[1]):sentinel_data[0]})
 
-	# 		mlr = combine.LinearRegression(analysis_df).multiple_lin_reg()
-			#print(mlr)
-		#station_dict.update({station_id:station_df}) #put new combined df into a dictionary format like station id: df of all params combined
-	#print(station_dict)
-    # for station_id in sites_ids[:2]: 
-
-   	# 	for year in range(int(start_date[0:4])+1,int(end_date[0:4])+1):
-   		
-   	# 		for k,v in station_dict.items(): 
-
-   	# 			combine.PrepPlottingData(station_dict,input_csv) 
-		#print(station_df)
-	#viz = combine.PrepPlottingData(water_years.prepare_data(),input_csv) #get the dictionary of water years not the df of all the years which would be index 0
-	# # #print(viz.clean_gee_data())
-	# print(viz.simple_lin_reg_plot())
+	# output = pyParz.foreach(sites_ids,run_model,args=[param_dict,start_date,end_date,sentinel_dict],numThreads=20)
+	
 
 	
 if __name__ == '__main__':
