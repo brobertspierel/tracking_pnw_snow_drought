@@ -11,24 +11,32 @@ import glob
 import pyParz
 import matplotlib.pyplot as plt
 
-def run_model(args):
-	station_id,param_dict,start_date,end_date,sentinel_dict = args 
+
+def run_model(station_id,param_dict,start_date,end_date,sentinel_dict):
+	#station_id,param_dict,start_date,end_date,sentinel_dict = args 
 	station_ls = []
 	for k,v in param_dict.items(): #go through the possible snotel params  
-			station_ls.append(v[station_id])
+		station_ls.append(v[station_id]) #dict like {'station id:df of years for a param'}
 	station_df = pd.concat(station_ls,axis=1) #make a new df that has the years of interest and the snotel params 
+	#print(station_df)
+	#station_df = station_df.fillna(0)
 	for year in range(int(start_date[0:4])+1,int(end_date[0:4])+1): #run analysis annually- this will likely need to be changed
 		#select the params for that year 
 		try: 
+			#print(station_df)
 			snotel_year = station_df.loc[:, station_df.columns.str.contains(str(year))]
+			#print(snotel_year)
 			analysis_df = combine.PrepPlottingData(station_df,None,int(station_id),sentinel_dict[str(year)]).make_plot_dfs(str(year))
-			#print(analysis_df.head())
+			#print(analysis_df)
 		except KeyError: 
 			print('That file may not exist')
 			continue 
+		#modify the df with anomalies 
 
-		mlr = combine.LinearRegression(analysis_df).multiple_lin_reg()
-		print(mlr)
+		param_list = ['WTEQ','PREC','TAVG','SNWD'] #this is what dictates the plots created in the next line. Can be more automated. 
+		#vis = combine.LinearRegression(analysis_df,param_list).vis_relationship(year,station_id)
+		#mlr = combine.LinearRegression(analysis_df).multiple_lin_reg()
+		#print(mlr)
 def combine_dfs(sites_ids,param_dict,start_date,end_date): 
 	#station_id,param_dict,start_date,end_date = args
 	dry = {}
@@ -36,7 +44,8 @@ def combine_dfs(sites_ids,param_dict,start_date,end_date):
 	warm_dry = {}
 	for station_id in sites_ids: 
 		print(f'the station id is: {station_id}')
-		combined_df = pd.concat([param_dict['wteq'][station_id],param_dict['prec'][station_id],param_dict['tavg'][station_id]], axis=0).T #right now the col headers are the index because we were calculating anomalies, transpose that
+		combined_df = pd.concat([param_dict['wteq'][station_id],param_dict['prec'][station_id],param_dict['tavg'][station_id]], axis=0) #right now the col headers are the index because we were calculating anomalies, transpose that
+		print(combined_df)
 		small_df = combined_df.tail(1)
 		
 		# dry = small_df.filter(like='WTEQ').columns
@@ -97,9 +106,12 @@ def main():
 	sites = combine.make_site_list(stations)
 	sites_full = sites[0] #this is getting the full df of oregon (right now) snotel sites
 	sites_ids = sites[1] #this is getting a list of just the snotel site ids. You can grab a list slice to restrict how big results gets below. 
+	huc_dict = sites[2] #this gets a dict of format {site_id:huc12 id}
 	new_parameter = parameter+'_scaled'
 	state = sites_full['state'][0] #this is just looking into the df created from the sites and grabbing the state id. This is used to query the specific station
-	
+	print(huc_dict)
+	huc_list = list(set(i for i in huc_dict.values())) 
+	print(huc_list)
 	#create the input data
 	if write_out.lower() == 'true': 
 		for param in ['WTEQ','PREC','TAVG','SNWD']: 
@@ -134,32 +146,29 @@ def main():
 	#make outputs 
 	#water_years=combine.StationDataCleaning(results,parameter,new_parameter,start_date,end_date,season)
 	#generate a dictionary with each value being a dict of site_id:df of years of param
-	param_dict = {'wteq':wteq_wy.prepare_data('true',start_date,end_date),'prec':prec_wy.prepare_data('true',start_date,end_date),
-	'tavg':tavg_wy.prepare_data('true',start_date,end_date),'snwd':snwd_wy.prepare_data('true',start_date,end_date)}
-	output=combine_dfs(sites_ids,param_dict,start_date,end_date)
-	print(output)
-	plt.bar(output['dry'].values(), list(output['dry'].keys()), color='g')
-	plt.show()
+	anom_bool = 'true' #specifying true runs combine_dfs- anomoly from mean approach and false makes graphs or does mlr
+
+	param_dict = {'wteq':wteq_wy.prepare_data(anom_bool,start_date,end_date),'prec':prec_wy.prepare_data(anom_bool,start_date,end_date),
+	'tavg':tavg_wy.prepare_data(anom_bool,start_date,end_date),'snwd':snwd_wy.prepare_data(anom_bool,start_date,end_date)}
 	#print(param_dict['wteq'])
-	#print(param_dict)
-	#output = pyParz.foreach(sites_ids,combine_dfs,args=[param_dict,start_date,end_date],numThreads=25) 
-	#print(output[1])
-		#combined_df = pd.concat([param_dict['wteq'][station],param_dict['prec'][station],param_dict['tavg'][station]], axis=0)
-		# wteq = 
-		# prec = param_dict['prec'][station]
-		# tavg = param_dict['tavg'][station]
-
-	#uncomment to run regressions 
-	# station_dict = {}
-	# #pickle_files = [i for i in glob.glob(pickles+'*2014*')] #just pick something that all of the subset file names have 
-	# sentinel_dict = {}
-	# #read in the sentinel csvs and get the water year
-	# for file in glob.glob(csv_dir+'*.csv'): 
-	# 	sentinel_data = combine.PrepPlottingData(None,file,None,None).csv_to_df()
-	# 	sentinel_dict.update({str(sentinel_data[1]):sentinel_data[0]})
-
-	# output = pyParz.foreach(sites_ids,run_model,args=[param_dict,start_date,end_date,sentinel_dict],numThreads=20)
+	# if anom_bool == 'true': 
+	# 	#uncomment to run regressions 
+	# 	station_dict = {}
+	# 	#pickle_files = [i for i in glob.glob(pickles+'*2014*')] #just pick something that all of the subset file names have 
 	
+
+	sentinel_dict = {}
+	# 	#read in the sentinel csvs and get the water year
+	for file in glob.glob(csv_dir+'*.csv'): 
+		sentinel_data = combine.PrepPlottingData(None,file,None,None).csv_to_df()
+		sentinel_dict.update({str(sentinel_data[1]):sentinel_data[0]})
+	for i in sites_ids: 
+		run_model(i,param_dict,start_date,end_date,sentinel_dict)
+	#output = pyParz.foreach(sites_ids,run_model,args=[param_dict,start_date,end_date,sentinel_dict],numThreads=20)
+	
+	# else: 
+	#output=combine_dfs(sites_ids,param_dict,start_date,end_date)
+	# 	print(output)
 
 	
 if __name__ == '__main__':

@@ -35,6 +35,7 @@ import scipy as sp
 import statsmodels.api as sm
 from scipy import stats
 from statsmodels.stats.outliers_influence import variance_inflation_factor
+import matplotlib.lines as mlines
 
 #register_matplotlib_converters()
 
@@ -46,16 +47,22 @@ def make_site_list(input_csv):
         """Get a list of all the snotel sites from input csv."""
         sites=pd.read_csv(input_csv) #read in the list of snotel sites by state
         try: 
-            sites['site num']=sites['site name'].str.extract(r"\((.*?)\)") #strip the site numbers from the column with the name and number
-            site_ls= sites['site num'].tolist()
+            sites['site_num']=sites['site name'].str.extract(r"\((.*?)\)") #strip the site numbers from the column with the name and number
+            site_ls= sites['site_num'].tolist()
             #print('try')
             #print(site_ls)
         except KeyError:  #this was coming from the space instead of _. Catch it and move on. 
-            sites['site num']=sites['site_name'].str.extract(r"\((.*?)\)") #strip the site numbers from the column with the name and number
-            site_ls= sites['site num'].tolist()
+            sites['site_num']=sites['site_name'].str.extract(r"\((.*?)\)") #strip the site numbers from the column with the name and number
+            site_ls= sites['site_num'].tolist()
             print('except')
+
+        try: 
+            sites['huc_id']=sites['huc'].str.extract(r"\((.*?)\)")
+            huc_dict=dict(zip(sites.site_num, sites.huc_id.str.slice(0,4,1))) #currently set to get huc04, change the end point to get a different huc level 
+        except KeyError: 
+            print('There was an issue with the format of the huc col, please double check inputs')
         
-        return (sites,site_ls)
+        return (sites,site_ls,huc_dict)
 
 class CollectData(): 
     #these functions are used to get snotel data, clean and organize. 
@@ -173,7 +180,6 @@ class StationDataCleaning():
     def scaling(self,df):
         """Select a subset of the data and/or resample."""
         #df[new_parameter] = df[parameter].rolling(7).mean()
-
         #select core winter months
         if self.season.lower() == 'core_winter': 
             df = df[df['month'].isin(['12','01','02'])]
@@ -201,6 +207,8 @@ class StationDataCleaning():
             print('That is not a valid parameter for season. Choose one of: resample, core_winter or spring')
 
         return df
+    def convert_f_to_c(self,temp): 
+        return (temp-32)*5/9
 
     def prepare_data(self,anomaly,start_date,end_date):#input_ls,parameter,new_parameter,start_date,end_date,season): 
         """This should change the water year lists into dataframes so that they can be fed in as dataframes with every year, one for every station."""
@@ -232,26 +240,52 @@ class StationDataCleaning():
             wy_df = pd.concat(concat_ls,axis=1)
             if anomaly.lower() == 'true': #calculate an anomaly from a long term mean (normal)
                 #wy_df['mean'] = wy_df.T.max(axis=1)
-                anom_df = wy_df.transpose()
-                if self.parameter == 'PREC': 
-                    anom_df['stat'] = anom_df.sum(axis=1) #get the peak value 
-                    anom_df['anomaly'] = (anom_df['stat']-int(anom_df['stat'].mean()))    
-                else: 
-                    if self.parameter == 'TAVG': 
-                        anom_df['TD'] = anom_df[anom_df > 0].sum()
-                        anom_df['stat'] = anom_df['TD'].max(axis=1) #get the peak value
-
-                    anom_df['stat'] = anom_df.max(axis=1) #get the peak value 
-                    anom_df['anomaly'] = (anom_df['stat']-int(anom_df['stat'].mean()))
+                #anom_df = wy_df.transpose() #commented out the transpose to add stat and anom as cols
+                anom_df = wy_df
+                if self.parameter == 'PREC': #PREC is a cumulative variable, change to avg will require redownloading 
+                    anom_df['stat_PREC'] = anom_df.sum(axis=1) #get the peak value
+                    #the next line and its equivalent will calculate the anomaly from the dataset mean
+                    #anom_df = anom_df.subtract(anom_df['stat_PREC'],axis=0) 
+                    #anom_df['anomaly'] = (anom_df['stat']-int(anom_df['stat'].mean()))    
+                elif self.parameter == 'TAVG': #temp needs to be converted to deg C and then the thawing degrees are calculated
+                    anom_df = anom_df.apply(np.vectorize(self.convert_f_to_c))
+                    anom_df['stat_TAVG'] = anom_df[anom_df > 0].sum(axis=1)
+                    #anom_df = anom_df.subtract(anom_df['stat_TAVG'],axis=0)
+                    #anom_df['stat_TD'] = anom_df['stat'].max(axis=1) #get the peak value
+                elif self.parameter == 'SNWD': #snow depth and swe these should probably be converted to cm but currently in inches
+                    anom_df['stat_SNWD'] = anom_df.mean(axis=1) #get the peak value
+                    #anom_df = anom_df.subtract(anom_df['stat_SNWD'],axis=0) 
+                    #anom_df['anomaly'] = anom_df['stat']-int(anom_df['stat'].mean())
                 #wy_df.loc['max'] = wy_df.max()#(int(wy_df['max'].mean())-wy_df.max())
+                elif self.parameter == 'WTEQ':
+                    anom_df['stat_WTEQ'] = anom_df.mean(axis=1)
+                    #anom_df = anom_df.subtract(anom_df['stat_WTEQ'],axis=0)
+                station_dict.update({station_id:anom_df}) #removed the transpo
+            #working
+            # if anomaly.lower() == 'true': #calculate an anomaly from a long term mean (normal)
+            #     #wy_df['mean'] = wy_df.T.max(axis=1)
+            #     anom_df = wy_df.transpose()
+            #     if self.parameter == 'PREC': #PREC is a cumulative variable, change to avg will require redownloading 
+            #         anom_df['stat'] = anom_df.sum(axis=1) #get the peak value 
+            #         anom_df['anomaly'] = (anom_df['stat']-int(anom_df['stat'].mean()))    
+            #     else: 
+            #         if self.parameter == 'TAVG': #temp needs to be converted to deg C and then the thawing degrees are calculated
+            #             anom_df = anom_df.apply(np.vectorize(self.convert_f_to_c))
+            #             anom_df['stat'] = anom_df[anom_df > 0].sum(axis=1)
+            #             #anom_df['stat'] = anom_df['TD'].max(axis=1) #get the peak value
+            #         else: #snow depth and swe these should probably be converted to cm but currently in inches
+            #             anom_df['stat'] = anom_df.max(axis=1) #get the peak value 
+            #         anom_df['anomaly'] = anom_df['stat']-int(anom_df['stat'].mean())
+            #     #wy_df.loc['max'] = wy_df.max()#(int(wy_df['max'].mean())-wy_df.max())
 
-                station_dict.update({station_id:anom_df}) #removed the transpose
+            #     station_dict.update({station_id:anom_df.T}) #removed the transpose
 
                 #wy_df = wy_df.append(pd.DataFrame(wy_df.mean() -  #get the full time series mean for the season of interest
 
             #wy_df = wy_df.pct_change() * 100
             else: 
-                station_dict.update({station_id:wy_df}) #removed the transpose
+                station_dict.update({station_id:wy_df})
+                #station_dict.update({station_id:wy_df}) #removed the transpose
         #pickled = pickle.dump(station_dict, open( f'{filename}', 'ab' ))
         #print(station_dict)
         return station_dict #pct_change_wy #removed season mean
@@ -292,16 +326,15 @@ class PrepPlottingData():
 
     def clean_gee_data(self): 
         df = self.gee_data #df of gee data that was read in externally with csv_to_df
+
         try: 
             df = df.loc[df['site_num']==self.station_id]
-           
         except: 
             raise KeyError('Doule check your column headers. This should be the site id and the default is site_num.')
         
         #the sentinel images in GEE are split into two tiles on a day there is an overpass, combine them. 
         try: 
             df1 = df.groupby([df['date_time'].dt.date])['filter'].sum().reset_index() #filter is the default column name 
-            #print('df1 is: ', df1)
         except:
             print('something went wrong with the groupby') 
             raise KeyError('Please double check the column header you are using. The defualt from GEE is filter.')
@@ -309,20 +342,21 @@ class PrepPlottingData():
 
         #df1 = (df.set_index('date').resample('D')['filter'].sum()).reset_index()
         #print('second df is: ', df1)
+        try: 
+            #get the week of year
+            df1['date_time'] = pd.to_datetime(df1['date_time'])
+            df1['week_of_year'] = df1['date_time'].dt.week 
+            
+            #add a month col
+            df1['month'] = df1['date_time'].dt.month
 
-        #get the week of year
-        df1['date_time'] = pd.to_datetime(df1['date_time'])
-        df1['week_of_year'] = df1['date_time'].dt.week 
-        
-        #add a month col
-        df1['month'] = df1['date_time'].dt.month
-
-        #get the week of year where October 1 falls for the year of interest 
-        base_week = datetime.datetime(df1.date_time[0].to_pydatetime().year,10,1).isocalendar()[1]
-        df1.loc[df1.month >= 10,'week_of_year'] = df1.week_of_year-base_week
-        #adjust values that are after the first of the calendar year 
-        df1.loc[df1.month < 10, 'week_of_year'] = df1.week_of_year + 12
-
+            #get the week of year where October 1 falls for the year of interest 
+            base_week = datetime.datetime(df1.date_time[0].to_pydatetime().year,10,1).isocalendar()[1]
+            df1.loc[df1.month >= 10,'week_of_year'] = df1.week_of_year-base_week
+            #adjust values that are after the first of the calendar year 
+            df1.loc[df1.month < 10, 'week_of_year'] = df1.week_of_year + 12
+        except IndexError: 
+            print(f'That df seems to be empty. The start date is {df["date"][0]} and the id is {self.station_id}')
         return df1
 
     def make_plot_dfs(self,year): 
@@ -337,15 +371,18 @@ class PrepPlottingData():
          #select only the weeks of the snotel data that coincide with sentinel visits 
         snotel_df=snotel_df[snotel_df['week_of_year'].isin(sentinel_weeks)].reset_index()
         #make a dataset that combines the snotel and sentinel data for ease of plotting
-        df = pd.concat(list([snotel_df.loc[:, snotel_df.columns.str.contains(str(year))],sentinel_df['filter']]),axis=1) 
+        df = pd.concat(list([snotel_df.loc[:, snotel_df.columns.str.contains(str(year))],
+            snotel_df.loc[:,snotel_df.columns.str.contains('stat')],
+            sentinel_df['filter']]),axis=1) 
         df = df.fillna(value={year:0})
         
         return df
 class LinearRegression(): 
     """Functions to carry out simple and multiple linear regression analysis from a df."""
 
-    def __init__(self,input_df): 
+    def __init__(self,input_df,param_list): 
         self.input_df = input_df
+        self.param_list = param_list
 
     def simple_lin_reg_plot(self): 
         fig,ax = plt.subplots(1,1,figsize=(15,15))
@@ -391,6 +428,7 @@ class LinearRegression():
 
         print(x)
         y = self.input_df['filter']
+        y = y.fillna(0)
         model = sm.OLS(y, x).fit()
         residuals=model.resid.mean()
         print(residuals)
@@ -402,7 +440,7 @@ class LinearRegression():
         print(model.summary())
         #visualize 
         sns.pairplot(df)
-        #plt.show()
+        plt.show()
         # fitted_vals = model.predict()
         # resids = model.resid
 
@@ -439,6 +477,90 @@ class LinearRegression():
         ax[1].set(xlabel='Predicted', ylabel='Residuals')
         
     #linearity_test(lin_reg, y)    
+    def vis_relationship(self,year,station_id): 
+        df = self.input_df
+        #add a week of year col based on index
+        df['week_of_year'] = range(1,(len(df.index))+1)
+        plot_size = int(len(self.param_list))
+        fig,ax = plt.subplots(2,2)
+        ax = ax.flatten()
+         
+        for i in range(len(self.param_list)): #['WTEQ','PREC','TAVG']
+            print(f'count is {i}')
+            #add swe
+            #print(len(self.param_list)+1)
+            #print(df['week_of_year'])
+            #print(df[f'{self.param_list[i]}_{year}'])
+            ax[i].plot(df['week_of_year'],df[f'{self.param_list[i]}_{year}'],color='darkblue',lw=2)
+            #this plots the mean values but it is uncessary if plotting anomaly from the mean 
+            ax[i].plot(df['week_of_year'],df[f'stat_{self.param_list[i]}'],color='forestgreen',lw=2,ls='--')
+            ax[i].set_title(f'{self.param_list[i]} vs Sentinel 1 wet snow')
+            ax[i].set(xlabel='Week of year', ylabel='SWE (in)')
+            ax0=ax[i].twinx()
+            ax0.plot(df['week_of_year'],df['filter'],color='darkred',lw=2)
+            ax0.set(ylabel='Sentinel 1 wet snow (30m pixels)')
+            #add a legend to the first plot
+            if i == 0: #add the legend only to the first plot  
+                blue_line = mlines.Line2D([], [], color='darkblue', label='SNOTEL')
+                reds_line = mlines.Line2D([], [], color='darkred', label='Sentinel 1')
+                green_line = mlines.Line2D([], [], color='forestgreen', label='Mean')
+                plt.legend(handles=[blue_line, reds_line, green_line])
+            else: 
+                pass 
+        fig.suptitle(f'Sentinel 1 vs SNOTEL station {station_id} year {year}', fontsize=12)        
+        plt.tight_layout()
+        plt.show()
+        plt.close('all')
+
+
+
+        # #add swe
+        # sns.lineplot(x=df['week_of_year'],y=df[f'WTEQ_{year}'],ax=ax[0],color='darkblue',lw=2)
+        # #this plots the mean values but it is uncessary if plotting anomaly from the mean 
+        # sns.lineplot(x=df['week_of_year'],y=df['stat_WTEQ'],ax=ax[0],color='forestgreen',lw=2,style=True, dashes=[(2,2)])
+        # ax[0].set_title('SWE vs Sentinel 1 wet snow')
+        # ax[0].set(xlabel='Week of year', ylabel='SWE (in)')
+        # ax0=ax[0].twinx()
+        # sns.lineplot(x=df['week_of_year'],y=df['filter'],ax=ax0,color='darkred',lw=2)
+        # ax0.set(ylabel='Sentinel 1 wet snow (30m pixels)')
+        # #r, p = stats.pearsonr(df.dropna()[f'WTEQ_{year}'], df.dropna()['filter'])
+        # #ax[0].annotate(f"Overall Pearson r = {np.round(r,2)} and p = {np.round(p,2)}",xy=(0.8,0.8),xycoords='figure points')
+        # #add a legend to the first plot
+        # blue_line = mlines.Line2D([], [], color='darkblue', label='SNOTEL')
+        # reds_line = mlines.Line2D([], [], color='darkred', label='Sentinel 1')
+        # plt.legend(handles=[blue_line, reds_line])
+        
+        # #add prec
+        # sns.lineplot(x=df['week_of_year'],y=df[f'PREC_{year}'],ax=ax[1],color='darkblue',lw=2)
+        # ax[1].set_title('PREC vs Sentinel 1 wet snow')
+        # ax[1].set(xlabel='Week of year', ylabel='PREC (in)')
+        # ax1=ax[1].twinx()
+        # sns.lineplot(x=df['week_of_year'],y=df['filter'],ax=ax1,color='darkred',lw=2)
+        # ax1.set(ylabel='Sentinel 1 wet snow (30m pixels)')
+
+        # #add temp
+        # sns.lineplot(x=df['week_of_year'],y=df[f'TAVG_{year}'],ax=ax[2],color='darkblue',lw=2)
+        # ax[2].set_title('TAVG vs Sentinel 1 wet snow')
+        # ax[2].set(xlabel='Week of year', ylabel='TAVG (in)')
+        # ax2=ax[2].twinx()
+        # sns.lineplot(x=df['week_of_year'],y=df['filter'],ax=ax2,color='darkred',lw=2)
+        # ax2.set(ylabel='Sentinel 1 wet snow (30m pixels)')
+
+        # #add snow depth
+        # sns.lineplot(x=df['week_of_year'],y=df[f'SNWD_{year}'],ax=ax[3],color='darkblue',lw=2)
+        # ax[3].set_title('SNWD vs Sentinel 1 wet snow')
+        # ax[3].set(xlabel='Week of year', ylabel='SNWD (in)')
+        # ax3=ax[3].twinx()
+        # sns.lineplot(x=df['week_of_year'],y=df['filter'],ax=ax3,color='darkred',lw=2)
+        # ax3.set(ylabel='Sentinel 1 wet snow (30m pixels)')
+        # #print(f"Scipy computed Pearson r: {r} and p-value: {p}")
+        # #fig.legend(loc="upper right")
+        # #import matplotlib.pyplot as plt
+        # # defining legend style and data
+        
+
+
+        
 ##################################################################################
 ##################################################################################
 ##################################################################################
