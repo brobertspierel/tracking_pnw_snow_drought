@@ -260,43 +260,15 @@ class StationDataCleaning():
                 elif self.parameter == 'WTEQ':
                     anom_df['stat_WTEQ'] = anom_df.mean(axis=1)
                     #anom_df = anom_df.subtract(anom_df['stat_WTEQ'],axis=0)
-                station_dict.update({station_id:anom_df}) #removed the transpo
-            #working
-            # if anomaly.lower() == 'true': #calculate an anomaly from a long term mean (normal)
-            #     #wy_df['mean'] = wy_df.T.max(axis=1)
-            #     anom_df = wy_df.transpose()
-            #     if self.parameter == 'PREC': #PREC is a cumulative variable, change to avg will require redownloading 
-            #         anom_df['stat'] = anom_df.sum(axis=1) #get the peak value 
-            #         anom_df['anomaly'] = (anom_df['stat']-int(anom_df['stat'].mean()))    
-            #     else: 
-            #         if self.parameter == 'TAVG': #temp needs to be converted to deg C and then the thawing degrees are calculated
-            #             anom_df = anom_df.apply(np.vectorize(self.convert_f_to_c))
-            #             anom_df['stat'] = anom_df[anom_df > 0].sum(axis=1)
-            #             #anom_df['stat'] = anom_df['TD'].max(axis=1) #get the peak value
-            #         else: #snow depth and swe these should probably be converted to cm but currently in inches
-            #             anom_df['stat'] = anom_df.max(axis=1) #get the peak value 
-            #         anom_df['anomaly'] = anom_df['stat']-int(anom_df['stat'].mean())
-            #     #wy_df.loc['max'] = wy_df.max()#(int(wy_df['max'].mean())-wy_df.max())
-
-            #     station_dict.update({station_id:anom_df.T}) #removed the transpose
-
-                #wy_df = wy_df.append(pd.DataFrame(wy_df.mean() -  #get the full time series mean for the season of interest
-
-            #wy_df = wy_df.pct_change() * 100
+                station_dict.update({station_id:anom_df}) #removed the transpose
+            
             else: 
                 station_dict.update({station_id:wy_df})
                 #station_dict.update({station_id:wy_df}) #removed the transpose
         #pickled = pickle.dump(station_dict, open( f'{filename}', 'ab' ))
         #print(station_dict)
         return station_dict #pct_change_wy #removed season mean
-#example
-# for k,v in water_years[0].items(): 
-#         #print(v)
-#         print(v.iloc[:-1,:-1])
-#         df = v.iloc[:-1,:-1]
-#         df['average'] = df.mean(axis=1)
-#         df['anomaly'] = df['average']-water_years[1] #get the full time series mean for the season of interest
-#         # yr_min=int(v.index.min())
+
 class PrepPlottingData(): 
     """Create visulization of simple or multiple linear regression with sentinel 1 wet snow outputs and snotel data."""
     def __init__(self,input_df,input_csv,station_id,gee_data): 

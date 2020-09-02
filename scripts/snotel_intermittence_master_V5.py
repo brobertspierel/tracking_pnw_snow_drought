@@ -74,7 +74,9 @@ def combine_dfs(sites_ids,param_dict,start_date,end_date):
 	#df.filter(like='spike').columns
 	output = {'dry':dry,'warm':warm,'warm_dry':warm_dry}
 	return output
-
+def format_dict(input_dict,modifier): 
+		return {f'{modifier}_'+k:v for k,v in input_dict.items()}
+		
 def main():
 	"""Master function for snotel intermittence from SNOTEL and RS data. 
 	Requirements: 
@@ -109,9 +111,9 @@ def main():
 	huc_dict = sites[2] #this gets a dict of format {site_id:huc12 id}
 	new_parameter = parameter+'_scaled'
 	state = sites_full['state'][0] #this is just looking into the df created from the sites and grabbing the state id. This is used to query the specific station
-	print(huc_dict)
+	print('huc_dict is: ', huc_dict)
 	huc_list = list(set(i for i in huc_dict.values())) 
-	print(huc_list)
+	
 	#create the input data
 	if write_out.lower() == 'true': 
 		for param in ['WTEQ','PREC','TAVG','SNWD']: 
@@ -162,8 +164,37 @@ def main():
 	for file in glob.glob(csv_dir+'*.csv'): 
 		sentinel_data = combine.PrepPlottingData(None,file,None,None).csv_to_df()
 		sentinel_dict.update({str(sentinel_data[1]):sentinel_data[0]})
-	for i in sites_ids: 
-		run_model(i,param_dict,start_date,end_date,sentinel_dict)
+	#make some dicts to hold the outputs 
+	# processing_dict = {'wteq':format_dict(huc_out,'wteq'),'prec':format_dict(huc_out,'prec'),
+	# 'tavg':format_dict(huc_out,'tavg'),'snwd':format_dict(huc_out,'snwd')}
+	# print(processing_dict)
+	#for k,v in param_dict.items(): #a dict of dict like {'param':{'station_id':df}}
+		#print(f'k is {k}')
+
+	output_dict = {} #should look like {param:{huc_id:[list of dfs]}}
+	#this solution is working 
+	for k,v in param_dict.items(): #k is param and v is dict of {'station id':df}
+		huc_out = {i:list() for i in huc_list}
+		for k1,v1 in huc_dict.items(): 
+			print(f'site id is: {k1}')
+			print(f'huc id is: {v1}')
+			inter_df = v[k1]
+			for k2,v2 in huc_out.items():
+				
+				if v1 == k2: 
+					huc_out[k2].append(inter_df)
+				else: 
+					print('that is not the right id')
+		output_dict.update({k:huc_out})
+	#print(test_dict) 
+
+	for k,v in output_dict.items(): 
+		for k1,v1 in v.items(): 
+			pd.concat(v1).groupby(level=0).mean()
+	print(output_dict)
+	#still in use
+	# for i in sites_ids: #use to make sentinel/snotel figures 
+	# 	run_model(i,param_dict,start_date,end_date,sentinel_dict)
 	#output = pyParz.foreach(sites_ids,run_model,args=[param_dict,start_date,end_date,sentinel_dict],numThreads=20)
 	
 	# else: 
