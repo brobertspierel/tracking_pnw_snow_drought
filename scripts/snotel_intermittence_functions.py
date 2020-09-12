@@ -43,25 +43,28 @@ import matplotlib.lines as mlines
 ################################################################################################
 ################################################################################################
 ################################################################################################
-def make_site_list(input_csv): 
+def make_site_list(input_df): 
         """Get a list of all the snotel sites from input csv."""
-        sites=pd.read_csv(input_csv) #read in the list of snotel sites by state
-        try: 
-            sites['site_num']=sites['site name'].str.extract(r"\((.*?)\)") #strip the site numbers from the column with the name and number
-            site_ls= sites['site_num'].tolist()
-            #print('try')
-            #print(site_ls)
-        except KeyError:  #this was coming from the space instead of _. Catch it and move on. 
-            sites['site_num']=sites['site_name'].str.extract(r"\((.*?)\)") #strip the site numbers from the column with the name and number
-            site_ls= sites['site_num'].tolist()
-            print('except')
+        sites=input_df#pd.read_csv(input_csv) #read in the list of snotel sites by state
+        if not 'site_num' in sites: 
+            try: 
+                sites['site_num']=sites['site name'].str.extract(r"\((.*?)\)") #strip the site numbers from the column with the name and number
+                site_ls= sites['site_num'].tolist()
+                #print('try')
+                #print(site_ls)
+            except KeyError:  #this was coming from the space instead of _. Catch it and move on. 
+                sites['site_num']=sites['site_name'].str.extract(r"\((.*?)\)") #strip the site numbers from the column with the name and number
+                site_ls= sites['site_num'].tolist()
+                print('except')
 
-        try: 
-            sites['huc_id']=sites['huc'].str.extract(r"\((.*?)\)")
-            huc_dict=dict(zip(sites.site_num, sites.huc_id.str.slice(0,4,1))) #currently set to get huc04, change the end point to get a different huc level 
-        except KeyError: 
-            print('There was an issue with the format of the huc col, please double check inputs')
-        
+            try: 
+                sites['huc_id']=sites['huc'].str.extract(r"\((.*?)\)")
+                huc_dict=dict(zip(sites.site_num, sites.huc_id.str.slice(0,4,1))) #currently set to get huc04, change the end point to get a different huc level 
+            except KeyError: 
+                print('There was an issue with the format of the huc col, please double check inputs')
+        else: 
+            site_ls = sites['site_num'].astype('str').tolist()
+            huc_dict=dict(zip(sites.site_num.astype('str'), sites.huc_id.astype('str').str.slice(0,4,1))) #currently set to get huc04, change the end point to get a different huc level 
         return (sites,site_ls,huc_dict)
 
 class CollectData(): 
@@ -210,13 +213,18 @@ class StationDataCleaning():
     def convert_f_to_c(self,temp): 
         return (temp-32)*5/9
 
-    def prepare_data(self,anomaly,start_date,end_date):#input_ls,parameter,new_parameter,start_date,end_date,season): 
+    def prepare_data(self,anomaly,start_date,end_date,state):#input_ls,parameter,new_parameter,start_date,end_date,season): 
         """This should change the water year lists into dataframes so that they can be fed in as dataframes with every year, one for every station."""
         station_dict = {}
         #print('df is ',input_ls[2])
         anom_dict = {} 
-        for df in self.input_ls: #the input_ls should be the list of dataframes from results. NOTE: change this when you're ready to run the whole archive 
+        num_years_dict = {}
+        for df in self.input_ls: #the input_ls should be the list of dataframes from results. 
+            #print(df['date'][0].year)
             station_id=df['id'][0]
+            #figure out how many years we have for all stations
+            #num_years = int(end_date[:4])-int(df['date'][0].year)
+            #num_years_dict.update({station_id:num_years})
             #prep input data 
             df1=self.scaling(df)#self.parameter,self.new_parameter,self.season)
             wy_ls=water_years(df1,start_date,end_date) #list of dicts
@@ -242,14 +250,14 @@ class StationDataCleaning():
                 #wy_df['mean'] = wy_df.T.max(axis=1)
                 #anom_df = wy_df.transpose() #commented out the transpose to add stat and anom as cols
                 anom_df = wy_df
-                if self.parameter == 'PREC': #PREC is a cumulative variable, change to avg will require redownloading 
-                    anom_df['stat_PREC'] = anom_df.sum(axis=1) #get the peak value
+                if self.parameter == 'PRCP': #PREC is a cumulative variable, change to avg will require redownloading. PRCP is a step variable
+                    anom_df['stat_PRCP'] = anom_df.mean(axis=1) #get the peak value
                     #the next line and its equivalent will calculate the anomaly from the dataset mean
                     #anom_df = anom_df.subtract(anom_df['stat_PREC'],axis=0) 
                     #anom_df['anomaly'] = (anom_df['stat']-int(anom_df['stat'].mean()))    
                 elif self.parameter == 'TAVG': #temp needs to be converted to deg C and then the thawing degrees are calculated
                     anom_df = anom_df.apply(np.vectorize(self.convert_f_to_c))
-                    anom_df['stat_TAVG'] = anom_df[anom_df > 0].sum(axis=1)
+                    anom_df['stat_TAVG'] = anom_df[anom_df > 0].sum(axis=1) #calculate thawing degrees as per Dierauer et al. 
                     #anom_df = anom_df.subtract(anom_df['stat_TAVG'],axis=0)
                     #anom_df['stat_TD'] = anom_df['stat'].max(axis=1) #get the peak value
                 elif self.parameter == 'SNWD': #snow depth and swe these should probably be converted to cm but currently in inches
@@ -267,6 +275,9 @@ class StationDataCleaning():
                 #station_dict.update({station_id:wy_df}) #removed the transpose
         #pickled = pickle.dump(station_dict, open( f'{filename}', 'ab' ))
         #print(station_dict)
+        #print(num_years_dict)
+        #years_df = pd.DataFrame.from_dict(num_years_dict,orient='index')
+        #years_df.to_csv(f'/vol/v1/general_files/user_files/ben/excel_files/{state}_year_counts.csv')
         return station_dict #pct_change_wy #removed season mean
 
 class PrepPlottingData(): 
@@ -288,7 +299,8 @@ class PrepPlottingData():
                 print('The cols in your df are: ', df.columns, 'changing the date column...')
                 #system:time_start is a GEE default, rename it
                 df.rename(columns={'date':'date_time'},inplace=True)
-                print(df)
+                df = df.sort_values('date_time')
+
             except: 
                 print('Something is wrong with the format of your df it looks like: ')
                 df = pd.read_csv(self.input_csv)
@@ -298,9 +310,12 @@ class PrepPlottingData():
 
     def clean_gee_data(self): 
         df = self.gee_data #df of gee data that was read in externally with csv_to_df
-
+        # print('the intital df is: ',df)
+        # print(df['site_num'])
+        # print(type(df['site_num'][0]))
         try: 
             df = df.loc[df['site_num']==self.station_id]
+            #print('df here is: ',df)
         except: 
             raise KeyError('Doule check your column headers. This should be the site id and the default is site_num.')
         
@@ -328,12 +343,13 @@ class PrepPlottingData():
             #adjust values that are after the first of the calendar year 
             df1.loc[df1.month < 10, 'week_of_year'] = df1.week_of_year + 12
         except IndexError: 
+            raise
             print(f'That df seems to be empty. The start date is {df["date"][0]} and the id is {self.station_id}')
         return df1
 
     def make_plot_dfs(self,year): 
         #get sentinel data 
-        sentinel_df = self.clean_gee_data()
+        sentinel_df = self.gee_data#formerly self.clean_gee_data()
         #get list of weeks that had a sentinel obs 
         sentinel_weeks = sentinel_df.week_of_year.tolist()
         #get snotel station that aligns with the sentinel data 
@@ -349,6 +365,62 @@ class PrepPlottingData():
         df = df.fillna(value={year:0})
         
         return df
+
+
+    #currently working 
+    # def clean_gee_data(self): 
+    #     df = self.gee_data #df of gee data that was read in externally with csv_to_df
+
+    #     try: 
+    #         df = df.loc[df['site_num']==self.station_id]
+    #     except: 
+    #         raise KeyError('Doule check your column headers. This should be the site id and the default is site_num.')
+        
+    #     #the sentinel images in GEE are split into two tiles on a day there is an overpass, combine them. 
+    #     try: 
+    #         df1 = df.groupby([df['date_time'].dt.date])['filter'].sum().reset_index() #filter is the default column name 
+    #     except:
+    #         print('something went wrong with the groupby') 
+    #         raise KeyError('Please double check the column header you are using. The defualt from GEE is filter.')
+    #     #df = df.groupby([df['Date_Time'].dt.date])['B'].mean()
+
+    #     #df1 = (df.set_index('date').resample('D')['filter'].sum()).reset_index()
+    #     #print('second df is: ', df1)
+    #     try: 
+    #         #get the week of year
+    #         df1['date_time'] = pd.to_datetime(df1['date_time'])
+    #         df1['week_of_year'] = df1['date_time'].dt.week 
+            
+    #         #add a month col
+    #         df1['month'] = df1['date_time'].dt.month
+
+    #         #get the week of year where October 1 falls for the year of interest 
+    #         base_week = datetime.datetime(df1.date_time[0].to_pydatetime().year,10,1).isocalendar()[1]
+    #         df1.loc[df1.month >= 10,'week_of_year'] = df1.week_of_year-base_week
+    #         #adjust values that are after the first of the calendar year 
+    #         df1.loc[df1.month < 10, 'week_of_year'] = df1.week_of_year + 12
+    #     except IndexError: 
+    #         print(f'That df seems to be empty. The start date is {df["date"][0]} and the id is {self.station_id}')
+    #     return df1
+
+    # def make_plot_dfs(self,year): 
+    #     #get sentinel data 
+    #     sentinel_df = self.clean_gee_data()
+    #     #get list of weeks that had a sentinel obs 
+    #     sentinel_weeks = sentinel_df.week_of_year.tolist()
+    #     #get snotel station that aligns with the sentinel data 
+    #     snotel_df = self.input_df#self.df_dict[f'{self.station_id}']
+    #     #create a week of year col
+    #     snotel_df['week_of_year'] = range(1,(len(snotel_df.index))+1)
+    #      #select only the weeks of the snotel data that coincide with sentinel visits 
+    #     snotel_df=snotel_df[snotel_df['week_of_year'].isin(sentinel_weeks)].reset_index()
+    #     #make a dataset that combines the snotel and sentinel data for ease of plotting
+    #     df = pd.concat(list([snotel_df.loc[:, snotel_df.columns.str.contains(str(year))],
+    #         snotel_df.loc[:,snotel_df.columns.str.contains('stat')],
+    #         sentinel_df['filter']]),axis=1) 
+    #     df = df.fillna(value={year:0})
+        
+    #     return df
 class LinearRegression(): 
     """Functions to carry out simple and multiple linear regression analysis from a df."""
 
@@ -458,11 +530,7 @@ class LinearRegression():
         ax = ax.flatten()
          
         for i in range(len(self.param_list)): #['WTEQ','PREC','TAVG']
-            print(f'count is {i}')
-            #add swe
-            #print(len(self.param_list)+1)
-            #print(df['week_of_year'])
-            #print(df[f'{self.param_list[i]}_{year}'])
+            
             ax[i].plot(df['week_of_year'],df[f'{self.param_list[i]}_{year}'],color='darkblue',lw=2)
             #this plots the mean values but it is uncessary if plotting anomaly from the mean 
             ax[i].plot(df['week_of_year'],df[f'stat_{self.param_list[i]}'],color='forestgreen',lw=2,ls='--')
@@ -477,9 +545,12 @@ class LinearRegression():
                 reds_line = mlines.Line2D([], [], color='darkred', label='Sentinel 1')
                 green_line = mlines.Line2D([], [], color='forestgreen', label='Mean')
                 plt.legend(handles=[blue_line, reds_line, green_line])
+            elif i == 3: #add a pearson correlation coefficient to the final plot (snow depth)
+                r, p = stats.pearsonr(df.dropna()[f'{self.param_list[i]}_{year}'], df.dropna()['filter'])
+                ax[i].annotate(f"Pearson r = {np.round(r,2)} \nand p = {np.round(p,2)}",xy=(0.8,0.35),xycoords='figure fraction')
             else: 
                 pass 
-        fig.suptitle(f'Sentinel 1 vs SNOTEL station {station_id} year {year}', fontsize=12)        
+        fig.suptitle(f'Sentinel 1 vs SNOTEL HUC04 {station_id} for year {year}', fontsize=12)        
         plt.tight_layout()
         plt.show()
         plt.close('all')

@@ -12,11 +12,13 @@ import pyParz
 import matplotlib.pyplot as plt
 
 
-def run_model(station_id,param_dict,start_date,end_date,sentinel_dict):
+
+def run_model(huc_id,snotel_param_dict,start_date,end_date,sentinel_dict):
 	#station_id,param_dict,start_date,end_date,sentinel_dict = args 
 	station_ls = []
-	for k,v in param_dict.items(): #go through the possible snotel params  
-		station_ls.append(v[station_id]) #dict like {'station id:df of years for a param'}
+	for k,v in snotel_param_dict.items(): #go through the possible snotel params  
+		station_ls.append(v[huc_id])
+		#station_ls.append(v[station_id]) #dict like {'station id:df of years for a param'}
 	station_df = pd.concat(station_ls,axis=1) #make a new df that has the years of interest and the snotel params 
 	#print(station_df)
 	#station_df = station_df.fillna(0)
@@ -26,54 +28,93 @@ def run_model(station_id,param_dict,start_date,end_date,sentinel_dict):
 			#print(station_df)
 			snotel_year = station_df.loc[:, station_df.columns.str.contains(str(year))]
 			#print(snotel_year)
-			analysis_df = combine.PrepPlottingData(station_df,None,int(station_id),sentinel_dict[str(year)]).make_plot_dfs(str(year))
+			analysis_df = combine.PrepPlottingData(station_df,None,None,sentinel_dict[str(year)][huc_id]).make_plot_dfs(str(year))
 			#print(analysis_df)
 		except KeyError: 
 			print('That file may not exist')
 			continue 
 		#modify the df with anomalies 
 
-		param_list = ['WTEQ','PREC','TAVG','SNWD'] #this is what dictates the plots created in the next line. Can be more automated. 
-		#vis = combine.LinearRegression(analysis_df,param_list).vis_relationship(year,station_id)
+		param_list = ['WTEQ','PRCP','TAVG','SNWD'] #this is what dictates the plots created in the next line. Can be more automated. 
+		vis = combine.LinearRegression(analysis_df,param_list).vis_relationship(year,huc_id)
 		#mlr = combine.LinearRegression(analysis_df).multiple_lin_reg()
 		#print(mlr)
+
 def combine_dfs(sites_ids,param_dict,start_date,end_date): 
 	#station_id,param_dict,start_date,end_date = args
 	dry = {}
 	warm = {}
 	warm_dry = {}
+	count = 0 
 	for station_id in sites_ids: 
-		print(f'the station id is: {station_id}')
-		combined_df = pd.concat([param_dict['wteq'][station_id],param_dict['prec'][station_id],param_dict['tavg'][station_id]], axis=0) #right now the col headers are the index because we were calculating anomalies, transpose that
-		print(combined_df)
-		small_df = combined_df.tail(1)
-		
+		try:
+			#print(f'the station id is: {station_id}')
+			combined_df = pd.concat([param_dict['wteq'][station_id],param_dict['prcp'][station_id],param_dict['tavg'][station_id]], axis=0) #combine params for use in the next step
+			#print('combined df is: ', combined_df)
+		except KeyError: 
+			print('that station is missing')
+			continue
+		#small_df = combined_df.tail(1)
+		max_values = pd.DataFrame(combined_df.max()).T
+		# print(max_values)
+		# print(type(max_values))
+		# print(max_values.index)
 		# dry = small_df.filter(like='WTEQ').columns
 		# dry = dry[dry<=0]
 		# print(small_df)
-		
 		for year in range(int(start_date[0:4])+1,int(end_date[0:4])+1):
 			#print(f'year is {year}')
-			yearly = small_df.filter(like=str(year))
+			#yearly = max_values.filter(like=str(year))
+			l = [str(year),'stat']
+			regstr = '|'.join(l)
+			yearly = max_values.loc[:,max_values.columns.str.contains(regstr)]
 			#print(yearly)
-			try: 
-				if (yearly[f'WTEQ_{year}'][0] < 0) and (yearly[f'PREC_{year}'][0] < 0) and (yearly[f'TAVG_{year}'][0] < 0): 
+			try: #in these if/else statements the 'stat' col is the long term anomoly. I've taken the max values from there in line with Dierauer et. al 2019
+				if (yearly[f'WTEQ_{year}'][0] < yearly['stat_WTEQ'][0]) and (yearly[f'PRCP_{year}'][0] < yearly['stat_PRCP'][0]) and (yearly[f'TAVG_{year}'][0] < yearly['stat_TAVG'][0]): 
 					dry.update({station_id:year})
-				elif (yearly[f'WTEQ_{year}'][0] < 0) and (yearly[f'PREC_{year}'][0] > 0): 
+				elif (yearly[f'WTEQ_{year}'][0] < yearly['stat_WTEQ'][0]) and (yearly[f'PRCP_{year}'][0] > yearly['stat_PRCP'][0]): 
 					warm.update({station_id:year})
-				elif (yearly[f'WTEQ_{year}'][0] < 0) and (yearly[f'PREC_{year}'][0]) < 0 and (yearly[f'TAVG_{year}'][0]) > 0: 
+				elif (yearly[f'WTEQ_{year}'][0] < yearly['stat_WTEQ'][0]) and (yearly[f'PRCP_{year}'][0] < yearly['stat_PRCP'][0]) and (yearly[f'TAVG_{year}'][0] > yearly['stat_TAVG'][0]) : 
 					warm_dry.update({station_id:year})
 				else: 
-					print(f'station {station_id} for {year} was normal or above average. The swe anom was: {yearly[f"WTEQ_{year}"][0]}')
-			except KeyError:
-				continue 
-
+					print(f'station {station_id} for {year} was normal or above average. The swe value was: {yearly[f"WTEQ_{year}"][0]} and the long term mean was: {yearly[f"stat_WTEQ"][0]}')
+			except:
+				print('we did not like any of those')
+		
 	#print(dry,warm,warm_dry)
 	# 	small_df=
 	#inter_list = combined_df.index[df['BoolCol'] == True].tolist()
 	#df.filter(like='spike').columns
 	output = {'dry':dry,'warm':warm,'warm_dry':warm_dry}
+	print(output)
 	return output
+
+def plot_anoms(input_dict,anom_start_date,anom_end_date): 
+
+	width = 1.0     # gives histogram aspect to the bar diagram
+	plot_dict = {}
+	for k,v in input_dict.items(): 
+		count_dict = {}
+		vals = list(v.values())
+		for i in set(vals): 
+			counts = vals.count(i)
+			count_dict.update({i:counts})
+		plot_dict.update({k:count_dict})
+	fig,ax=plt.subplots(1,3)
+	ax = ax.flatten()
+	count = 0
+	for k,v in plot_dict.items(): 
+		ax[count].bar(list(v.keys()), v.values(), color='g')
+		#ax[count].set_xticks(range(int(anom_start_date[0:4])+1,int(anom_end_date[0:4])+1))
+		ax[count].set_title(f'{k} snow drought')
+		count +=1 
+	plt.xticks(rotation=45)
+	plt.tight_layout()
+	plt.show()
+	plt.close('all')
+		
+	return plot_dict
+
 def format_dict(input_dict,modifier): 
 		return {f'{modifier}_'+k:v for k,v in input_dict.items()}
 		
@@ -101,29 +142,35 @@ def main():
 		parameter = variables["parameter"]
 		start_date = variables["start_date"]
 		end_date = variables["end_date"]
+		anom_start_date = variables["anom_start_date"]
+		anom_end_date = variables["anom_end_date"]
 		write_out = variables["write_out"]
 		pickles = variables["pickles"]
+		anom_bool = variables["anom_bool"]
 	#run_prep_training = sys.argv[1].lower() == 'true' 
-	#get some of the params needed- TO DO- the source csv needs to be updated with the precise snotel site locations 
-	sites = combine.make_site_list(stations)
+	#get some of the params needed
+	stations_df = pd.read_csv(stations)
+	stations_df = stations_df[stations_df['state']=='WA'] #this might not be the best way to run this, right now it will require changing the state you want 
+	sites = combine.make_site_list(stations_df)
 	sites_full = sites[0] #this is getting the full df of oregon (right now) snotel sites
 	sites_ids = sites[1] #this is getting a list of just the snotel site ids. You can grab a list slice to restrict how big results gets below. 
 	huc_dict = sites[2] #this gets a dict of format {site_id:huc12 id}
 	new_parameter = parameter+'_scaled'
-	state = sites_full['state'][0] #this is just looking into the df created from the sites and grabbing the state id. This is used to query the specific station
-	print('huc_dict is: ', huc_dict)
+	state = sites_full['state'].iloc[0] #this is just looking into the df created from the sites and grabbing the state id. This is used to query the specific station
+	#print('huc_dict is: ', huc_dict)
+	#make a csv for sentinel data
+	#sites_full.to_csv(f"/vol/v1/general_files/user_files/ben/excel_files/{state}_snotel_data.csv")
 	huc_list = list(set(i for i in huc_dict.values())) 
 	
 	#create the input data
 	if write_out.lower() == 'true': 
-		for param in ['WTEQ','PREC','TAVG','SNWD']: 
+		for param in ['WTEQ','PREC','TAVG','SNWD','PRCP']: #PRCP
+			
 			print('current param is: ', param)
-			input_data = combine.CollectData(stations,param,start_date,end_date,state,sites_ids, write_out,output_filepath)
+			input_data = combine.CollectData(stations,param,anom_start_date,anom_end_date,state,sites_ids, write_out,output_filepath)
 			#get new data
 			pickle_results=input_data.snotel_compiler() #this generates a list of dataframes of all of the snotel stations that have data for a given state
-		#results=input_data.pickle_opener()
-		# return results
-	#use pickled data 
+		
 	try: 
 		# #params currently considered, either update here or include as a param 
 		# param_list = ['WTEQ','PREC','TAVG','SNWD']
@@ -131,16 +178,16 @@ def main():
 
 		#read the dfs of each snotel param into a dict for further processing 
 		wteq_wy = combine.StationDataCleaning(combine.pickle_opener(
-			output_filepath+f'{state}_WTEQ_{start_date}_{end_date}_snotel_data_list'),
+			output_filepath+f'{state}_WTEQ_{anom_start_date}_{anom_end_date}_snotel_data_list'),
 			'WTEQ',season)
 		prec_wy = combine.StationDataCleaning(combine.pickle_opener(
-			output_filepath+f'{state}_PREC_{start_date}_{end_date}_snotel_data_list'),
-			'PREC',season)
+			output_filepath+f'{state}_PRCP_{anom_start_date}_{anom_end_date}_snotel_data_list'),
+			'PRCP',season)
 		tavg_wy = combine.StationDataCleaning(combine.pickle_opener(
-			output_filepath+f'{state}_TAVG_{start_date}_{end_date}_snotel_data_list'),
+			output_filepath+f'{state}_TAVG_{anom_start_date}_{anom_end_date}_snotel_data_list'),
 			'TAVG',season)
 		snwd_wy = combine.StationDataCleaning(combine.pickle_opener(
-			output_filepath+f'{state}_SNWD_{start_date}_{end_date}_snotel_data_list'),
+			output_filepath+f'{state}_SNWD_{anom_start_date}_{anom_end_date}_snotel_data_list'),
 			'SNWD',season)
 		
 	except FileNotFoundError: 
@@ -148,64 +195,146 @@ def main():
 	#make outputs 
 	#water_years=combine.StationDataCleaning(results,parameter,new_parameter,start_date,end_date,season)
 	#generate a dictionary with each value being a dict of site_id:df of years of param
-	anom_bool = 'true' #specifying true runs combine_dfs- anomoly from mean approach and false makes graphs or does mlr
+	
 
-	param_dict = {'wteq':wteq_wy.prepare_data(anom_bool,start_date,end_date),'prec':prec_wy.prepare_data(anom_bool,start_date,end_date),
-	'tavg':tavg_wy.prepare_data(anom_bool,start_date,end_date),'snwd':snwd_wy.prepare_data(anom_bool,start_date,end_date)}
+	#format snotel data by paramater
+	param_dict = {'wteq':wteq_wy.prepare_data(anom_bool,anom_start_date,anom_end_date,state),'prcp':prec_wy.prepare_data(anom_bool,anom_start_date,anom_end_date,state),
+	'tavg':tavg_wy.prepare_data(anom_bool,anom_start_date,anom_end_date,state),'snwd':snwd_wy.prepare_data(anom_bool,anom_start_date,anom_end_date,state)}
+	
+
+	##########################################################################
+	#this is working and generates the snow drought years
+	#generate anomolies 
+	snow_droughts=combine_dfs(sites_ids,param_dict,anom_start_date,anom_end_date)
+	year_counts=plot_anoms(snow_droughts,anom_start_date,anom_end_date)
+	#print(anomolies)
+	#collect some data on these results
+	anom_dict = {'num_stations':len(sites_ids),'count_of_years':year_counts}
+	print('anom dict is: ', anom_dict)
+	anom_df = pd.DataFrame(anom_dict['count_of_years'])
+	anom_df.to_csv(f'/vol/v1/general_files/user_files/ben/excel_files/{state}_anom_outputs.csv')
+	#########################################################################
+	#this might be working and should be used to generate the multiple linear regressions
 	#print(param_dict['wteq'])
 	# if anom_bool == 'true': 
 	# 	#uncomment to run regressions 
 	# 	station_dict = {}
 	# 	#pickle_files = [i for i in glob.glob(pickles+'*2014*')] #just pick something that all of the subset file names have 
 	
-
+	################################################################################
+	#below here working and the correct sequence to generate figures of snotel params against sentinel 1 by year and huc basin
+	
 	sentinel_dict = {}
 	# 	#read in the sentinel csvs and get the water year
 	for file in glob.glob(csv_dir+'*.csv'): 
 		sentinel_data = combine.PrepPlottingData(None,file,None,None).csv_to_df()
 		sentinel_dict.update({str(sentinel_data[1]):sentinel_data[0]})
-	#make some dicts to hold the outputs 
-	# processing_dict = {'wteq':format_dict(huc_out,'wteq'),'prec':format_dict(huc_out,'prec'),
-	# 'tavg':format_dict(huc_out,'tavg'),'snwd':format_dict(huc_out,'snwd')}
-	# print(processing_dict)
-	#for k,v in param_dict.items(): #a dict of dict like {'param':{'station_id':df}}
-		#print(f'k is {k}')
-
-	output_dict = {} #should look like {param:{huc_id:[list of dfs]}}
-	#this solution is working 
+	#print(sentinel_dict)
+	#testing old method for making figures
+	# for i in sites_ids: #use to make sentinel/snotel figures 
+	# 	run_model(i,param_dict,start_date,end_date,sentinel_dict)
+	
+	#reformat snotel data so that it is organized by huc code 
+	#######################################################################################
+	snotel_output_dict = {} #should look like {param:{huc_id:[list of dfs]}}
 	for k,v in param_dict.items(): #k is param and v is dict of {'station id':df}
-		huc_out = {i:list() for i in huc_list}
+		huc_out = {i:list() for i in huc_list} #use to get the station id and huc code 
 		for k1,v1 in huc_dict.items(): 
-			print(f'site id is: {k1}')
-			print(f'huc id is: {v1}')
 			inter_df = v[k1]
 			for k2,v2 in huc_out.items():
 				
 				if v1 == k2: 
 					huc_out[k2].append(inter_df)
 				else: 
-					print('that is not the right id')
-		output_dict.update({k:huc_out})
-	#print(test_dict) 
-
-	for k,v in output_dict.items(): 
-		for k1,v1 in v.items(): 
-			pd.concat(v1).groupby(level=0).mean()
-	print(output_dict)
-	#still in use
-	# for i in sites_ids: #use to make sentinel/snotel figures 
-	# 	run_model(i,param_dict,start_date,end_date,sentinel_dict)
-	#output = pyParz.foreach(sites_ids,run_model,args=[param_dict,start_date,end_date,sentinel_dict],numThreads=20)
+					pass
+					#print('that is not the right id')
+		snotel_output_dict.update({k:huc_out})
 	
-	# else: 
-	#output=combine_dfs(sites_ids,param_dict,start_date,end_date)
-	# 	print(output)
+	#reformat to concat lists of df to one df
+	for k,v in snotel_output_dict.items(): 
+		for k1,v1 in v.items(): #k1 is huc id and v1 is a list of dataframes for that param 
+			output_df = pd.concat(v1).groupby(level=0).mean() #concats correctly but then the mean isn't workingdf_concat.groupby(level=0).mean()
+			snotel_output_dict[k][k1] = output_df #overwrite the list of dfs with df. Now in the form {param:{huc_id:df of years avg for the basin}}
+	#######################################################################################
+	#reformat the sentinel data
+	sentinel_dict_out = {}
+	for k,v in sentinel_dict.items(): #this is like {year:df of sentinel data} 
+		#print('v is : ',v)
+		huc_out = {i:list() for i in huc_list} #use to get the station id and huc code 
+
+		for i in sites_ids: 
+			try: 
+				inter_df = combine.PrepPlottingData(None,None,int(i),v).clean_gee_data()#.make_plot_dfs(str(year))
+				huc_id = huc_dict[i]
+				huc_out[huc_id].append(inter_df)
+				#sentinel_dict_out.update({i:inter_df})
+			except:
+				print(f'id {i} for year {k} does not appear to exist')
+				continue
+		sentinel_dict_out.update({k:huc_out})
+	#print(sentinel_dict_out)
+	for k,v in sentinel_dict_out.items(): 
+		for k1,v1 in v.items(): 
+			# for df in v1: 
+			# 	df = df.set_index('week_of_year')
+			#In [4]: df.groupby('StationID', as_index=False)['BiasTemp'].mean()
+			#combine the list of dfs and get the mean of filter by matching weeks of year (they are not all the same size df)
+			output_df = pd.concat(v1).groupby('week_of_year',as_index=False)['filter'].mean()
+			sentinel_dict_out[k][k1] = output_df
+	#print(sentinel_dict_out)
+	#make some figures
+	for i in huc_list: 
+		run_model(i,snotel_output_dict,start_date,end_date,sentinel_dict_out)
+	# station_ls = []
+	# for k,v in snotel_param_dict.items(): #go through the possible snotel params  
+	# 	for k1,v1 in v.items(): #{huc_id:df of years for that param}
+	# 		station_ls.append(v[station_id]) #dict like {'station id:df of years for a param'}
+	# station_df = pd.concat(station_ls,axis=1) #make a new df that has the years of interest and the snotel params 
+	# print(station_df)
+
+	# for k,v in sentinel_dict_out.items(): #use to make sentinel/snotel figures k is years and v is dict like: {huc_id:df of basin avg for that year}
+	# 	inter_dict = {}
+	# 	inter_list = []
+	# 	for k1,v1 in v.items(): 
+	# 		for i in ['wteq','prec','tavg','snwd']: 
+	# 			snotel_output_dict[i]
+
+		# for k1,v1 in v.items(): #k1 is huc id and v1 is df of avg for that year 
+		# 	for k2,v2 in snotel_output_dict.items(): 
+		# 		input_data = PrepPlottingData(snotel_output_dict,None,None,v) #here we just pass v as the gee_data 
+		# 		run_model(snotel_output_dict,start_date,end_date,v)
+
+	
+	# output = pyParz.foreach(sites_ids,run_model,args=[param_dict,start_date,end_date,sentinel_dict],numThreads=20)
 
 	
 if __name__ == '__main__':
     main()
 
-# wteq_results=input_data.pickle_opener(output_filepath+f'{state}_WTEQ_{start_date}_{end_date}_snotel_data_list')
-			# prec_results=input_data.pickle_opener(output_filepath+f'{state}_PREC_{start_date}_{end_date}_snotel_data_list')
-			# tavg_results=input_data.pickle_opener(output_filepath+f'{state}_TAVG_{start_date}_{end_date}_snotel_data_list')
-			# snwd_results=input_data.pickle_opener(output_filepath+f'{state}_SNWD_{start_date}_{end_date}_snotel_data_list')
+#currently working
+# def run_model(station_id,param_dict,start_date,end_date,sentinel_dict):
+# 	#station_id,param_dict,start_date,end_date,sentinel_dict = args 
+# 	station_ls = []
+# 	for k,v in param_dict.items(): #go through the possible snotel params  
+# 		station_ls.append(v[station_id]) #dict like {'station id:df of years for a param'}
+# 	station_df = pd.concat(station_ls,axis=1) #make a new df that has the years of interest and the snotel params 
+# 	print(station_df)
+# 	#station_df = station_df.fillna(0)
+# 	for year in range(int(start_date[0:4])+1,int(end_date[0:4])+1): #run analysis annually- this will likely need to be changed
+# 		#select the params for that year 
+# 		try: 
+# 			#print(station_df)
+# 			snotel_year = station_df.loc[:, station_df.columns.str.contains(str(year))]
+# 			print(snotel_year)
+# 			analysis_df = combine.PrepPlottingData(station_df,None,int(station_id),sentinel_dict[str(year)]).make_plot_dfs(str(year))
+# 			#print(analysis_df)
+# 		except KeyError: 
+# 			print('That file may not exist')
+# 			continue 
+# 		#modify the df with anomalies 
+
+# 		param_list = ['WTEQ','PREC','TAVG','SNWD'] #this is what dictates the plots created in the next line. Can be more automated. 
+# 		#vis = combine.LinearRegression(analysis_df,param_list).vis_relationship(year,station_id)
+# 		#mlr = combine.LinearRegression(analysis_df).multiple_lin_reg()
+# 		#print(mlr)
+

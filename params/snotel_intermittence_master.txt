@@ -5,10 +5,13 @@
 	"output_filepath": "/vol/v1/general_files/user_files/ben/sentinel_1_snow/pickles/", 
 	"season": "resample", 
 	"csv_dir": "/vol/v1/general_files/user_files/ben/sentinel_1_snow/full_outputs/", 
-	"stations":"/vol/v1/general_files/user_files/ben/oregon_snotel_sites.csv",
+	"stations":"/vol/v1/general_files/user_files/ben/excel_files/NWCC_high_resolution_coordinates_2019_edited_updated_fields_final.csv",
 	"parameter":"PREC", 
 	"start_date":"2014-10-01",  
-	"end_date":"2019-09-30", 
+	"end_date":"2019-09-30",
+	"anom_start_date":"1985-10-01",
+	"anom_end_date":"2019-09-30", 
 	"write_out":"false", 
-	"pickles":"/vol/v1/general_files/user_files/ben/sentinel_1_snow/pickles/"
+	"pickles":"/vol/v1/general_files/user_files/ben/sentinel_1_snow/pickles/", 
+	"anom_bool":"true"
 }
