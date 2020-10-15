@@ -29,13 +29,25 @@ def run_model(huc_id,snotel_param_dict,start_date,end_date,sentinel_dict):
 			snotel_year = station_df.loc[:, station_df.columns.str.contains(str(year))]
 			#print(snotel_year)
 			analysis_df = combine.PrepPlottingData(station_df,None,None,sentinel_dict[str(year)][huc_id]).make_plot_dfs(str(year))
-			#print(analysis_df)
+			print(analysis_df)
+			for column in analysis_df.columns: 
+				if str(year) in column:
+					param = column.split('_') #cols are formatted like param_year or stat_param
+					analysis_df[f'plus_std_{param[0]}'] = analysis_df[column]+analysis_df[column].std(axis=0)
+					analysis_df[f'minus_std_{param[0]}'] = analysis_df[column]-analysis_df[column].std(axis=0)
+				elif 'filter' in column: 
+					analysis_df[f'plus_std_filter'] = analysis_df[column]+analysis_df[column].std(axis=0)
+					analysis_df[f'minus_std_filter'] = analysis_df[column]-analysis_df[column].std(axis=0)
+				else: 
+					continue
+				print(analysis_df)
 		except KeyError: 
 			print('That file may not exist')
 			continue 
 		#modify the df with anomalies 
 
 		param_list = ['WTEQ','PRCP','TAVG','SNWD'] #this is what dictates the plots created in the next line. Can be more automated. 
+		
 		vis = combine.LinearRegression(analysis_df,param_list).vis_relationship(year,huc_id)
 		#mlr = combine.LinearRegression(analysis_df).multiple_lin_reg()
 		#print(mlr)
@@ -150,7 +162,7 @@ def main():
 	#run_prep_training = sys.argv[1].lower() == 'true' 
 	#get some of the params needed
 	stations_df = pd.read_csv(stations)
-	stations_df = stations_df[stations_df['state']=='WA'] #this might not be the best way to run this, right now it will require changing the state you want 
+	stations_df = stations_df[stations_df['state']=='OR'] #this might not be the best way to run this, right now it will require changing the state you want 
 	sites = combine.make_site_list(stations_df)
 	sites_full = sites[0] #this is getting the full df of oregon (right now) snotel sites
 	sites_ids = sites[1] #this is getting a list of just the snotel site ids. You can grab a list slice to restrict how big results gets below. 
@@ -164,7 +176,7 @@ def main():
 	
 	#create the input data
 	if write_out.lower() == 'true': 
-		for param in ['WTEQ','PREC','TAVG','SNWD','PRCP']: #PRCP
+		for param in ['WTEQ','PREC','TAVG','SNWD','PRCP','PRCPSA']: #PRCP
 			
 			print('current param is: ', param)
 			input_data = combine.CollectData(stations,param,anom_start_date,anom_end_date,state,sites_ids, write_out,output_filepath)
@@ -205,14 +217,15 @@ def main():
 	##########################################################################
 	#this is working and generates the snow drought years
 	#generate anomolies 
-	snow_droughts=combine_dfs(sites_ids,param_dict,anom_start_date,anom_end_date)
-	year_counts=plot_anoms(snow_droughts,anom_start_date,anom_end_date)
-	#print(anomolies)
-	#collect some data on these results
-	anom_dict = {'num_stations':len(sites_ids),'count_of_years':year_counts}
-	print('anom dict is: ', anom_dict)
-	anom_df = pd.DataFrame(anom_dict['count_of_years'])
-	anom_df.to_csv(f'/vol/v1/general_files/user_files/ben/excel_files/{state}_anom_outputs.csv')
+	# snow_droughts=combine_dfs(sites_ids,param_dict,anom_start_date,anom_end_date)
+	# #uncomment to make plot of anomaly years 
+	# year_counts=plot_anoms(snow_droughts,anom_start_date,anom_end_date)
+	# #print(anomolies)
+	# #collect some data on these results
+	# anom_dict = {'num_stations':len(sites_ids),'count_of_years':year_counts}
+	# #print('anom dict is: ', anom_dict)
+	# anom_df = pd.DataFrame(anom_dict['count_of_years'])
+	# anom_df.to_csv(f'/vol/v1/general_files/user_files/ben/excel_files/{state}_anom_outputs.csv')
 	#########################################################################
 	#this might be working and should be used to generate the multiple linear regressions
 	#print(param_dict['wteq'])

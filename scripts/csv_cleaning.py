@@ -33,4 +33,4 @@ for file in glob.glob('/vol/v1/general_files/user_files/ben/excel_files/final_ed
 nwcc_file['huc_id'] = nwcc_file['site_num'].astype('str').map(output_dict)
 print(nwcc_file.head())
 #write out
-nwcc_file.to_csv("/vol/v1/general_files/user_files/ben/excel_files/NWCC_high_resolution_coordinates_2019_edited_updated_fields_final.csv")
+nwcc_file.to_csv("/vol/v1/general_files/user_files/ben/excel_files/NWCC_high_resolution_coordinates_2019_hucs.csv",index=False)

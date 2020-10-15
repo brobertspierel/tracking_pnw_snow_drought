@@ -182,7 +182,7 @@ class StationDataCleaning():
             self.season = season 
     def scaling(self,df):
         """Select a subset of the data and/or resample."""
-        #df[new_parameter] = df[parameter].rolling(7).mean()
+        #df[self.parameter] = df[self.parameter].rolling(7).std()
         #select core winter months
         if self.season.lower() == 'core_winter': 
             df = df[df['month'].isin(['12','01','02'])]
@@ -203,13 +203,17 @@ class StationDataCleaning():
             else: #any other of snow depth, swe or precip we can sum so do that
                 df[self.parameter] = df[self.parameter].resample('W').sum()
                 df[self.parameter]=df[self.parameter].round(2)
+            #test calculating a rolling std
+            #df = df.rolling(2).std()
             df = df.dropna()
             #print(df)
             df = df.reset_index()
         else: 
             print('That is not a valid parameter for season. Choose one of: resample, core_winter or spring')
+        #df[self.parameter] = df[self.parameter].rolling(4).std()
 
         return df
+
     def convert_f_to_c(self,temp): 
         return (temp-32)*5/9
 
@@ -246,6 +250,7 @@ class StationDataCleaning():
                 else: 
                     continue 
             wy_df = pd.concat(concat_ls,axis=1)
+
             if anomaly.lower() == 'true': #calculate an anomaly from a long term mean (normal)
                 #wy_df['mean'] = wy_df.T.max(axis=1)
                 #anom_df = wy_df.transpose() #commented out the transpose to add stat and anom as cols
@@ -345,6 +350,8 @@ class PrepPlottingData():
         except IndexError: 
             raise
             print(f'That df seems to be empty. The start date is {df["date"][0]} and the id is {self.station_id}')
+        #test the std for the sentinel data
+        #df1['filter'] = df1['filter'].rolling(2).std()
         return df1
 
     def make_plot_dfs(self,year): 
