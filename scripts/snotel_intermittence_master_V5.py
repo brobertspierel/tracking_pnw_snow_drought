@@ -51,48 +51,75 @@ def run_model(huc_id,snotel_param_dict,start_date,end_date,sentinel_dict):
 		vis = combine.LinearRegression(analysis_df,param_list).vis_relationship(year,huc_id)
 		#mlr = combine.LinearRegression(analysis_df).multiple_lin_reg()
 		#print(mlr)
+def get_years(input_df): 
+	years = input_df.columns[:-1] #drop one for the stats column
+	years = [int(i.split('_')[1]) for i in years]
+	years_min = min(years)
+	years_max = max(years)
+	return years_min,years_max
 
 def combine_dfs(sites_ids,param_dict,start_date,end_date): 
 	#station_id,param_dict,start_date,end_date = args
+	#here the param_dict is like {param:{station_id:df for param}}
 	dry = {}
 	warm = {}
 	warm_dry = {}
-	count = 0 
 	for station_id in sites_ids: 
+
 		try:
 			#print(f'the station id is: {station_id}')
-			combined_df = pd.concat([param_dict['wteq'][station_id],param_dict['prcp'][station_id],param_dict['tavg'][station_id]], axis=0) #combine params for use in the next step
+			#combined_df = pd.concat([param_dict['wteq'][station_id],param_dict['prcp'][station_id],param_dict['tavg'][station_id]], axis=0) #combine params for use in the next step
+			wteq_df = param_dict['wteq'][station_id]
+			prcp_df = param_dict['prcp'][station_id]
+			tavg_df = param_dict['tavg'][station_id]
+			print(wteq_df)
+			print(prcp_df)
+			print(tavg_df)
+			start_year = max([get_years(wteq_df)[0],get_years(prcp_df)[0],get_years(tavg_df)[0]]) #get the min year from each of these dataframes and then get the most recent one so there is data for all years
+			end_year = min([get_years(wteq_df)[1],get_years(prcp_df)[1],get_years(tavg_df)[1]]) #get the max year from each of the dataframes and then take the min so you get the earliest year that has data for all years
 			#print('combined df is: ', combined_df)
+			# print('tav_df is ', tavg_df)
+			# print(f'tav_df shape is {tavg_df.shape}')
+			# test = tavg_df['TAVG_2005'][tavg_df[f'TAVG_2005']>0]
+			# print(test)
+			# print(f'test.shape is: {test.shape}')
+			# print(test.shape[0])
 		except KeyError: 
 			print('that station is missing')
 			continue
 		#small_df = combined_df.tail(1)
-		max_values = pd.DataFrame(combined_df.max()).T
-		# print(max_values)
-		# print(type(max_values))
-		# print(max_values.index)
-		# dry = small_df.filter(like='WTEQ').columns
-		# dry = dry[dry<=0]
-		# print(small_df)
-		for year in range(int(start_date[0:4])+1,int(end_date[0:4])+1):
-			#print(f'year is {year}')
-			#yearly = max_values.filter(like=str(year))
-			l = [str(year),'stat']
-			regstr = '|'.join(l)
-			yearly = max_values.loc[:,max_values.columns.str.contains(regstr)]
-			#print(yearly)
-			try: #in these if/else statements the 'stat' col is the long term anomoly. I've taken the max values from there in line with Dierauer et. al 2019
-				if (yearly[f'WTEQ_{year}'][0] < yearly['stat_WTEQ'][0]) and (yearly[f'PRCP_{year}'][0] < yearly['stat_PRCP'][0]) and (yearly[f'TAVG_{year}'][0] < yearly['stat_TAVG'][0]): 
+		#max_values = pd.DataFrame(combined_df.max()).T
+		for year in range(start_year,end_year+1):#range(int(start_date[0:4])+1,int(end_date[0:4])+1): the first year will actually be the start of the water year, not the water year itself 
+			print(f'the year is {year}')
+			try: 
+				if (wteq_df[f'WTEQ_{year}'].max() < wteq_df[f'stat_WTEQ'][0]) and (prcp_df[f'PREC_{year}'].max()<prcp_df['stat_PREC'][0]) and ((tavg_df[f'TAVG_{year}'][tavg_df[f'TAVG_{year}']>0].shape[0])<tavg_df[f'stat_TAVG'][0]): #(tavg_df[f'TAVG_{year}'].mean()<tavg_df[f'stat_TAVG'][0]):
 					dry.update({station_id:year})
-				elif (yearly[f'WTEQ_{year}'][0] < yearly['stat_WTEQ'][0]) and (yearly[f'PRCP_{year}'][0] > yearly['stat_PRCP'][0]): 
+				elif (wteq_df[f'WTEQ_{year}'].max() < wteq_df[f'stat_WTEQ'][0]) and (prcp_df[f'PREC_{year}'].max()>=prcp_df['stat_PREC'][0]): 
 					warm.update({station_id:year})
-				elif (yearly[f'WTEQ_{year}'][0] < yearly['stat_WTEQ'][0]) and (yearly[f'PRCP_{year}'][0] < yearly['stat_PRCP'][0]) and (yearly[f'TAVG_{year}'][0] > yearly['stat_TAVG'][0]) : 
+				elif (wteq_df[f'WTEQ_{year}'].max() < wteq_df[f'stat_WTEQ'][0]) and (prcp_df[f'PREC_{year}'].max()<prcp_df['stat_PREC'][0]) and ((tavg_df[f'TAVG_{year}'][tavg_df[f'TAVG_{year}']>0].shape[0])>tavg_df[f'stat_TAVG'][0]): 
 					warm_dry.update({station_id:year})
 				else: 
-					print(f'station {station_id} for {year} was normal or above average. The swe value was: {yearly[f"WTEQ_{year}"][0]} and the long term mean was: {yearly[f"stat_WTEQ"][0]}')
-			except:
-				print('we did not like any of those')
-		
+					print(f'station {station_id} for {year} was normal or above average. The swe value was: {wteq_df[f"WTEQ_{year}"].max()} and the long term mean max value was: {wteq_df[f"stat_WTEQ"][0]}')
+			#print(f'year is {year}')
+			#yearly = max_values.filter(like=str(year))
+			#l = [str(year),'stat']
+			#regstr = '|'.join(l)
+			#yearly = max_values.loc[:,max_values.columns.str.contains(regstr)]
+			#print(yearly)
+			# try: #in these if/else statements the 'stat' col is the long term max. I've taken the max values from there in line with Dierauer et. al 2019
+			# 	if (yearly[f'WTEQ_{year}'][0] < yearly['stat_WTEQ'][0]) and (yearly[f'PRCP_{year}'][0] < yearly['stat_PRCP'][0]) and (yearly[f'TAVG_{year}'][0] < yearly['stat_TAVG'][0]): 
+			# 		dry.update({station_id:year})
+			# 	elif (yearly[f'WTEQ_{year}'][0] < yearly['stat_WTEQ'][0]) and (yearly[f'PRCP_{year}'][0] > yearly['stat_PRCP'][0]): 
+			# 		warm.update({station_id:year})
+			# 	elif (yearly[f'WTEQ_{year}'][0] < yearly['stat_WTEQ'][0]) and (yearly[f'PRCP_{year}'][0] < yearly['stat_PRCP'][0]) and (yearly[f'TAVG_{year}'][0] > yearly['stat_TAVG'][0]) : 
+			# 		warm_dry.update({station_id:year})
+			# 	else: 
+			# 		print(f'station {station_id} for {year} was normal or above average. The swe value was: {yearly[f"WTEQ_{year}"][0]} and the long term mean was: {yearly[f"stat_WTEQ"][0]}')
+			except Exception as e:
+				print(f'error is: {e}')
+				#print(f'The year {year} does not exist in the df whose first year is: {wteq_df.columns[0]}')
+				
+				continue	
 	#print(dry,warm,warm_dry)
 	# 	small_df=
 	#inter_list = combined_df.index[df['BoolCol'] == True].tolist()
@@ -108,11 +135,11 @@ def plot_anoms(input_dict,anom_start_date,anom_end_date):
 	for k,v in input_dict.items(): 
 		count_dict = {}
 		vals = list(v.values())
-		for i in set(vals): 
-			counts = vals.count(i)
+		for i in set(vals): #get the unique years
+			counts = vals.count(i) #get a count of each year
 			count_dict.update({i:counts})
 		plot_dict.update({k:count_dict})
-	fig,ax=plt.subplots(1,3)
+	fig,ax=plt.subplots(1,3,sharex=True,sharey=True)
 	ax = ax.flatten()
 	count = 0
 	for k,v in plot_dict.items(): 
@@ -120,7 +147,7 @@ def plot_anoms(input_dict,anom_start_date,anom_end_date):
 		#ax[count].set_xticks(range(int(anom_start_date[0:4])+1,int(anom_end_date[0:4])+1))
 		ax[count].set_title(f'{k} snow drought')
 		count +=1 
-	plt.xticks(rotation=45)
+	# plt.xticks(rotation=45)
 	plt.tight_layout()
 	plt.show()
 	plt.close('all')
@@ -129,7 +156,22 @@ def plot_anoms(input_dict,anom_start_date,anom_end_date):
 
 def format_dict(input_dict,modifier): 
 		return {f'{modifier}_'+k:v for k,v in input_dict.items()}
-		
+
+def organize_plots(input_dir,season): 
+	fig,ax = plt.subplots(3,3,figsize=(10,10),sharex=True,sharey=True)
+	#ax = ax.flatten()
+	files = glob.glob(input_dir+'*.csv')
+	for i in range(3): 
+		df = pd.read_csv(files[i]) 
+		for j in range(3): 
+			ax[i][j].bar(df['year'],df.iloc[:,j+1],color='darkblue') #iterate through the df columns 
+			ax[i][j].set_title(os.path.split(files[i])[1][:-4].split('_')[0]+f' {" ".join(season.split("_"))} '+df.columns[j+1])
+			ax[i][j].set_ylabel('Station count')
+	plt.show()
+	plt.close('all')
+
+
+
 def main():
 	"""Master function for snotel intermittence from SNOTEL and RS data. 
 	Requirements: 
@@ -159,10 +201,11 @@ def main():
 		write_out = variables["write_out"]
 		pickles = variables["pickles"]
 		anom_bool = variables["anom_bool"]
+		state_abbr = variables['state_abbr']
 	#run_prep_training = sys.argv[1].lower() == 'true' 
 	#get some of the params needed
 	stations_df = pd.read_csv(stations)
-	stations_df = stations_df[stations_df['state']=='OR'] #this might not be the best way to run this, right now it will require changing the state you want 
+	stations_df = stations_df[stations_df['state']==state_abbr] #this might not be the best way to run this, right now it will require changing the state you want 
 	sites = combine.make_site_list(stations_df)
 	sites_full = sites[0] #this is getting the full df of oregon (right now) snotel sites
 	sites_ids = sites[1] #this is getting a list of just the snotel site ids. You can grab a list slice to restrict how big results gets below. 
@@ -189,12 +232,13 @@ def main():
 		# param_dict = {}
 
 		#read the dfs of each snotel param into a dict for further processing 
+		pass
 		wteq_wy = combine.StationDataCleaning(combine.pickle_opener(
 			output_filepath+f'{state}_WTEQ_{anom_start_date}_{anom_end_date}_snotel_data_list'),
 			'WTEQ',season)
 		prec_wy = combine.StationDataCleaning(combine.pickle_opener(
-			output_filepath+f'{state}_PRCP_{anom_start_date}_{anom_end_date}_snotel_data_list'),
-			'PRCP',season)
+			output_filepath+f'{state}_PREC_{anom_start_date}_{anom_end_date}_snotel_data_list'),
+			'PREC',season)
 		tavg_wy = combine.StationDataCleaning(combine.pickle_opener(
 			output_filepath+f'{state}_TAVG_{anom_start_date}_{anom_end_date}_snotel_data_list'),
 			'TAVG',season)
@@ -207,25 +251,28 @@ def main():
 	#make outputs 
 	#water_years=combine.StationDataCleaning(results,parameter,new_parameter,start_date,end_date,season)
 	#generate a dictionary with each value being a dict of site_id:df of years of param
-	
+	#organize_plots('/vol/v1/general_files/user_files/ben/excel_files/snow_drought_outputs/',season)
 
 	#format snotel data by paramater
 	param_dict = {'wteq':wteq_wy.prepare_data(anom_bool,anom_start_date,anom_end_date,state),'prcp':prec_wy.prepare_data(anom_bool,anom_start_date,anom_end_date,state),
 	'tavg':tavg_wy.prepare_data(anom_bool,anom_start_date,anom_end_date,state),'snwd':snwd_wy.prepare_data(anom_bool,anom_start_date,anom_end_date,state)}
-	
-
-	##########################################################################
+	# #test={'tavg':tavg_wy.prepare_data(anom_bool,anom_start_date,anom_end_date,state)}
+	# #print(test)
+	# #print(param_dict['tavg'])
+	# ##########################################################################
 	#this is working and generates the snow drought years
 	#generate anomolies 
-	# snow_droughts=combine_dfs(sites_ids,param_dict,anom_start_date,anom_end_date)
-	# #uncomment to make plot of anomaly years 
-	# year_counts=plot_anoms(snow_droughts,anom_start_date,anom_end_date)
-	# #print(anomolies)
-	# #collect some data on these results
-	# anom_dict = {'num_stations':len(sites_ids),'count_of_years':year_counts}
-	# #print('anom dict is: ', anom_dict)
-	# anom_df = pd.DataFrame(anom_dict['count_of_years'])
-	# anom_df.to_csv(f'/vol/v1/general_files/user_files/ben/excel_files/{state}_anom_outputs.csv')
+	snow_droughts=combine_dfs(sites_ids,param_dict,anom_start_date,anom_end_date)
+	#uncomment to make plot of anomaly years 
+
+	year_counts=plot_anoms(snow_droughts,anom_start_date,anom_end_date)
+	#print(anomolies)
+	#collect some data on these results
+	#anom_dict = {'num_stations':len(sites_ids),'count_of_years':year_counts}
+	#print('anom dict is: ', anom_dict)
+	anom_df = pd.DataFrame.from_dict(year_counts)
+	#if season.lower() == ''
+	anom_df.to_csv(f'/vol/v1/general_files/user_files/ben/excel_files/{state}_anom_outputs_{season}_degree_days.csv')
 	#########################################################################
 	#this might be working and should be used to generate the multiple linear regressions
 	#print(param_dict['wteq'])
@@ -237,67 +284,69 @@ def main():
 	################################################################################
 	#below here working and the correct sequence to generate figures of snotel params against sentinel 1 by year and huc basin
 	
-	sentinel_dict = {}
-	# 	#read in the sentinel csvs and get the water year
-	for file in glob.glob(csv_dir+'*.csv'): 
-		sentinel_data = combine.PrepPlottingData(None,file,None,None).csv_to_df()
-		sentinel_dict.update({str(sentinel_data[1]):sentinel_data[0]})
-	#print(sentinel_dict)
-	#testing old method for making figures
-	# for i in sites_ids: #use to make sentinel/snotel figures 
-	# 	run_model(i,param_dict,start_date,end_date,sentinel_dict)
+	# sentinel_dict = {}
+	# # 	#read in the sentinel csvs and get the water year
+	# for file in glob.glob(csv_dir+'*.csv'): 
+	# 	sentinel_data = combine.PrepPlottingData(None,file,None,None).csv_to_df()
+	# 	sentinel_dict.update({str(sentinel_data[1]):sentinel_data[0]})
+	# #print(sentinel_dict)
+	# #testing old method for making figures
+	# # for i in sites_ids: #use to make sentinel/snotel figures 
+	# # 	run_model(i,param_dict,start_date,end_date,sentinel_dict)
 	
-	#reformat snotel data so that it is organized by huc code 
-	#######################################################################################
-	snotel_output_dict = {} #should look like {param:{huc_id:[list of dfs]}}
-	for k,v in param_dict.items(): #k is param and v is dict of {'station id':df}
-		huc_out = {i:list() for i in huc_list} #use to get the station id and huc code 
-		for k1,v1 in huc_dict.items(): 
-			inter_df = v[k1]
-			for k2,v2 in huc_out.items():
+	# #reformat snotel data so that it is organized by huc code 
+	# #######################################################################################
+	# snotel_output_dict = {} #should look like {param:{huc_id:[list of dfs]}}
+	# for k,v in param_dict.items(): #k is param and v is dict of {'station id':df}
+	# 	huc_out = {i:list() for i in huc_list} #use to get the station id and huc code 
+	# 	for k1,v1 in huc_dict.items(): 
+	# 		inter_df = v[k1]
+	# 		for k2,v2 in huc_out.items():
 				
-				if v1 == k2: 
-					huc_out[k2].append(inter_df)
-				else: 
-					pass
-					#print('that is not the right id')
-		snotel_output_dict.update({k:huc_out})
+	# 			if v1 == k2: 
+	# 				huc_out[k2].append(inter_df)
+	# 			else: 
+	# 				pass
+	# 				#print('that is not the right id')
+	# 	snotel_output_dict.update({k:huc_out})
 	
-	#reformat to concat lists of df to one df
-	for k,v in snotel_output_dict.items(): 
-		for k1,v1 in v.items(): #k1 is huc id and v1 is a list of dataframes for that param 
-			output_df = pd.concat(v1).groupby(level=0).mean() #concats correctly but then the mean isn't workingdf_concat.groupby(level=0).mean()
-			snotel_output_dict[k][k1] = output_df #overwrite the list of dfs with df. Now in the form {param:{huc_id:df of years avg for the basin}}
-	#######################################################################################
-	#reformat the sentinel data
-	sentinel_dict_out = {}
-	for k,v in sentinel_dict.items(): #this is like {year:df of sentinel data} 
-		#print('v is : ',v)
-		huc_out = {i:list() for i in huc_list} #use to get the station id and huc code 
+	# #reformat to concat lists of df to one df
+	# for k,v in snotel_output_dict.items(): 
+	# 	for k1,v1 in v.items(): #k1 is huc id and v1 is a list of dataframes for that param 
+	# 		output_df = pd.concat(v1).groupby(level=0).mean() #concats correctly but then the mean isn't workingdf_concat.groupby(level=0).mean()
+	# 		snotel_output_dict[k][k1] = output_df #overwrite the list of dfs with df. Now in the form {param:{huc_id:df of years avg for the basin}}
+	# #######################################################################################
+	# #reformat the sentinel data
+	# sentinel_dict_out = {}
+	# for k,v in sentinel_dict.items(): #this is like {year:df of sentinel data} 
+	# 	#print('v is : ',v)
+	# 	huc_out = {i:list() for i in huc_list} #use to get the station id and huc code 
 
-		for i in sites_ids: 
-			try: 
-				inter_df = combine.PrepPlottingData(None,None,int(i),v).clean_gee_data()#.make_plot_dfs(str(year))
-				huc_id = huc_dict[i]
-				huc_out[huc_id].append(inter_df)
-				#sentinel_dict_out.update({i:inter_df})
-			except:
-				print(f'id {i} for year {k} does not appear to exist')
-				continue
-		sentinel_dict_out.update({k:huc_out})
-	#print(sentinel_dict_out)
-	for k,v in sentinel_dict_out.items(): 
-		for k1,v1 in v.items(): 
-			# for df in v1: 
-			# 	df = df.set_index('week_of_year')
-			#In [4]: df.groupby('StationID', as_index=False)['BiasTemp'].mean()
-			#combine the list of dfs and get the mean of filter by matching weeks of year (they are not all the same size df)
-			output_df = pd.concat(v1).groupby('week_of_year',as_index=False)['filter'].mean()
-			sentinel_dict_out[k][k1] = output_df
-	#print(sentinel_dict_out)
-	#make some figures
-	for i in huc_list: 
-		run_model(i,snotel_output_dict,start_date,end_date,sentinel_dict_out)
+	# 	for i in sites_ids: 
+	# 		try: 
+	# 			inter_df = combine.PrepPlottingData(None,None,int(i),v).clean_gee_data()#.make_plot_dfs(str(year))
+	# 			huc_id = huc_dict[i]
+	# 			huc_out[huc_id].append(inter_df)
+	# 			#sentinel_dict_out.update({i:inter_df})
+	# 		except:
+	# 			print(f'id {i} for year {k} does not appear to exist')
+	# 			continue
+	# 	sentinel_dict_out.update({k:huc_out})
+	# #print(sentinel_dict_out)
+	# for k,v in sentinel_dict_out.items(): 
+	# 	for k1,v1 in v.items(): 
+	# 		# for df in v1: 
+	# 		# 	df = df.set_index('week_of_year')
+	# 		#In [4]: df.groupby('StationID', as_index=False)['BiasTemp'].mean()
+	# 		#combine the list of dfs and get the mean of filter by matching weeks of year (they are not all the same size df)
+	# 		output_df = pd.concat(v1).groupby('week_of_year',as_index=False)['filter'].mean()
+	# 		sentinel_dict_out[k][k1] = output_df
+	# #print(sentinel_dict_out)
+	# #make some figures
+	# for i in huc_list: 
+	# 	run_model(i,snotel_output_dict,start_date,end_date,sentinel_dict_out)
+	
+	######################################################################
 	# station_ls = []
 	# for k,v in snotel_param_dict.items(): #go through the possible snotel params  
 	# 	for k1,v1 in v.items(): #{huc_id:df of years for that param}

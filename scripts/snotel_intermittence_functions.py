@@ -112,27 +112,28 @@ class CollectData():
         df_ls = []
         missing = []
         count = 0
-        for i in self.site_list: 
-            try: 
-                df=self.get_snotel_data(f'{i}:{self.state}:SNTL')#this might need to be adjusted depending on how these are called ,f'{self.parameter}',f'{self.start_date}',f'{self.end_date}')
-                df_ls.append(df)
-            except UnboundLocalError as error: 
-                print(f'{i} station data is missing')
-                missing.append(i) 
-                continue
-            count +=1
-            print(count)
-        if self.write_out.lower() == 'true': 
-            print('the len of df_ls is: ' + str(len(df_ls)))
-            filename = self.output_filepath+f'{self.state}_{self.parameter}_{self.start_date}_{self.end_date}_snotel_data_list'
-            if os.path.exists(filename): 
-                print('That file already exists, continuing...')
+        filename = self.output_filepath+f'{self.state}_{self.parameter}_{self.start_date}_{self.end_date}_snotel_data_list'
+        if not os.path.exists(filename): 
+            for i in self.site_list: 
+                try: 
+                    df=self.get_snotel_data(f'{i}:{self.state}:SNTL')#this might need to be adjusted depending on how these are called ,f'{self.parameter}',f'{self.start_date}',f'{self.end_date}')
+                    df_ls.append(df)
+                except UnboundLocalError as error: 
+                    print(f'{i} station data is missing')
+                    missing.append(i) 
+                    continue
+                count +=1
+                print(count)
+            if self.write_out.lower() == 'true': 
+                print('the len of df_ls is: ' + str(len(df_ls)))
+                if os.path.exists(filename): 
+                    print('That file already exists, continuing...')
+                else: 
+                    pickle_data=pickle.dump(df_ls, open(filename,'ab'))
+                #print('left if statement')
             else: 
-                pickle_data=pickle.dump(df_ls, open(filename,'ab'))
-            #print('left if statement')
-        else: 
-            print('did not write data to pickle')
-            return df_ls
+                print('did not write data to pickle')
+                return df_ls
         return filename
 
 def pickle_opener(filename): 
@@ -145,7 +146,7 @@ def pickle_opener(filename):
 def water_years(input_df,start_date,end_date): 
     """Cut dataframes into water years. The output of this function is a list of dataframes with each dataframe
     representing a year of data for a single station. """
-
+    #print('the input df is: ',input_df)
     df_ls=[]
     df_dict={}
 
@@ -159,7 +160,7 @@ def water_years(input_df,start_date,end_date):
         wy.reset_index(inplace=True)#make the index the index again
         df_dict.update({str(year):wy})
         df_ls.append(df_dict) #append the dicts to a list
-        
+        #print(df_dict)
     return df_dict
 
 
@@ -191,7 +192,7 @@ class StationDataCleaning():
             df = df[df['month'].isin(['03','04','05'])]
 
         elif self.season.lower() == 'full_winter': 
-            df = df[df['month'].isin(['12','01','02','03','04','05'])]            
+            df = df[df['month'].isin(['11','12','01','02','03','04','05','06'])]            
 
         elif self.season.lower() == 'resample': 
             df['date'] = pd.to_datetime(df['date'])
@@ -210,6 +211,7 @@ class StationDataCleaning():
             df = df.reset_index()
         else: 
             print('That is not a valid parameter for season. Choose one of: resample, core_winter or spring')
+            pass
         #df[self.parameter] = df[self.parameter].rolling(4).std()
 
         return df
@@ -232,13 +234,14 @@ class StationDataCleaning():
             #prep input data 
             df1=self.scaling(df)#self.parameter,self.new_parameter,self.season)
             wy_ls=water_years(df1,start_date,end_date) #list of dicts
+            #print('water year list is: ', wy_ls)
             #pct_change_wy = {k:(v[self.parameter]).pct_change()*100 for k,v in wy_ls.items()}
             concat_ls = []
             for key,value in wy_ls.items():
                  
                 if not value.empty: 
                     try: 
-                        df2=value.drop(['date','year','month','id','day'],axis=1)
+                        df2=value.drop(['date','year','id','day'],axis=1) #removed month 10/22/2020
                     except KeyError: 
                         raise KeyError('Double check the cols in the input df, currently trying to drop date, year, month, id and day')
                     #df1 = value[new_parameter]
@@ -250,28 +253,46 @@ class StationDataCleaning():
                 else: 
                     continue 
             wy_df = pd.concat(concat_ls,axis=1)
+            print('wy_df is: ', wy_df)
 
             if anomaly.lower() == 'true': #calculate an anomaly from a long term mean (normal)
                 #wy_df['mean'] = wy_df.T.max(axis=1)
                 #anom_df = wy_df.transpose() #commented out the transpose to add stat and anom as cols
                 anom_df = wy_df
                 if self.parameter == 'PRCP': #PREC is a cumulative variable, change to avg will require redownloading. PRCP is a step variable
-                    anom_df['stat_PRCP'] = anom_df.mean(axis=1) #get the peak value
+                    anom_df['stat_PRCP'] = (anom_df.max()).mean() #get the mean of the max for each year #.max(axis=1) #get the peak value
+                    # print('max values are: ')
+                    # print(anom_df.max())
+                    # max_df = (anom_df.max()).mean()
+                    # print(type(max_df))
+                    # print(max_df)
                     #the next line and its equivalent will calculate the anomaly from the dataset mean
                     #anom_df = anom_df.subtract(anom_df['stat_PREC'],axis=0) 
-                    #anom_df['anomaly'] = (anom_df['stat']-int(anom_df['stat'].mean()))    
+                    #anom_df['anomaly'] = (anom_df['stat']-int(anom_df['stat'].mean())) 
+                elif self.parameter == 'PRCPSA': 
+                    #anom_df['stat_PRCPSA'] = anom_df.max(axis=1)   
+                    anom_df['stat_PRCPSA'] = (anom_df.max()).mean()
+                elif self.parameter == 'PREC': #cumulative precip
+                    anom_df['stat_PREC'] = (anom_df.max()).mean()
                 elif self.parameter == 'TAVG': #temp needs to be converted to deg C and then the thawing degrees are calculated
                     anom_df = anom_df.apply(np.vectorize(self.convert_f_to_c))
-                    anom_df['stat_TAVG'] = anom_df[anom_df > 0].sum(axis=1) #calculate thawing degrees as per Dierauer et al. 
+                    #anom_df['stat_TAVG'] = anom_df[anom_df > 0].sum(axis=1) #calculate thawing degrees as per Dierauer et al. 
+                    #anom_df['stat_TAVG'] = (anom_df.mean()).mean() #get the long term mean of the years
+                    anom_df['stat_TAVG'] = (anom_df[anom_df > 0 ].count()).mean() #new thawing degrees calculation
+            
+                    #TD definition: Thawing degrees (TDs) were calculated as the sum of mean daily temperatures for all winter
+                    #days with a mean daily temperature above 0 °C.
                     #anom_df = anom_df.subtract(anom_df['stat_TAVG'],axis=0)
                     #anom_df['stat_TD'] = anom_df['stat'].max(axis=1) #get the peak value
                 elif self.parameter == 'SNWD': #snow depth and swe these should probably be converted to cm but currently in inches
-                    anom_df['stat_SNWD'] = anom_df.mean(axis=1) #get the peak value
+                    anom_df['stat_SNWD'] = (anom_df.max()).mean()
+                    #anom_df['stat_SNWD'] = anom_df.max(axis=1) #get the peak value
                     #anom_df = anom_df.subtract(anom_df['stat_SNWD'],axis=0) 
                     #anom_df['anomaly'] = anom_df['stat']-int(anom_df['stat'].mean())
                 #wy_df.loc['max'] = wy_df.max()#(int(wy_df['max'].mean())-wy_df.max())
                 elif self.parameter == 'WTEQ':
-                    anom_df['stat_WTEQ'] = anom_df.mean(axis=1)
+                    anom_df['stat_WTEQ'] = (anom_df.max()).mean()
+                    #anom_df['stat_WTEQ'] = anom_df.max(axis=1)
                     #anom_df = anom_df.subtract(anom_df['stat_WTEQ'],axis=0)
                 station_dict.update({station_id:anom_df}) #removed the transpose
             
