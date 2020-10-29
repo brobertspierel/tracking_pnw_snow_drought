@@ -192,7 +192,7 @@ class StationDataCleaning():
             df = df[df['month'].isin(['03','04','05'])]
 
         elif self.season.lower() == 'full_winter': 
-            df = df[df['month'].isin(['11','12','01','02','03','04','05','06'])]            
+            df = df[df['month'].isin(['12','01','02','03','04'])]            
 
         elif self.season.lower() == 'resample': 
             df['date'] = pd.to_datetime(df['date'])
@@ -241,7 +241,7 @@ class StationDataCleaning():
                  
                 if not value.empty: 
                     try: 
-                        df2=value.drop(['date','year','id','day'],axis=1) #removed month 10/22/2020
+                        df2=value.drop(['date','year','month','id','day'],axis=1) #removed month 10/22/2020
                     except KeyError: 
                         raise KeyError('Double check the cols in the input df, currently trying to drop date, year, month, id and day')
                     #df1 = value[new_parameter]
@@ -253,7 +253,7 @@ class StationDataCleaning():
                 else: 
                     continue 
             wy_df = pd.concat(concat_ls,axis=1)
-            print('wy_df is: ', wy_df)
+            #print('wy_df is: ', wy_df)
 
             if anomaly.lower() == 'true': #calculate an anomaly from a long term mean (normal)
                 #wy_df['mean'] = wy_df.T.max(axis=1)
@@ -261,6 +261,8 @@ class StationDataCleaning():
                 anom_df = wy_df
                 if self.parameter == 'PRCP': #PREC is a cumulative variable, change to avg will require redownloading. PRCP is a step variable
                     anom_df['stat_PRCP'] = (anom_df.max()).mean() #get the mean of the max for each year #.max(axis=1) #get the peak value
+                    #anom_df['stat_PRCP'] = (anom_df.groupby('month').max()).mean()
+                    #print('anom df is: ', anom_df)
                     # print('max values are: ')
                     # print(anom_df.max())
                     # max_df = (anom_df.max()).mean()

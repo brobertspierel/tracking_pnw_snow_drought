@@ -3,7 +3,7 @@
 	"pnw_shapefile":"None",
 	"epsg": "4326",
 	"output_filepath": "/vol/v1/general_files/user_files/ben/sentinel_1_snow/pickles/", 
-	"season": "core_winter", 
+	"season": "full_winter", 
 	"csv_dir": "/vol/v1/general_files/user_files/ben/sentinel_1_snow/full_outputs/", 
 	"stations":"/vol/v1/general_files/user_files/ben/excel_files/NWCC_high_resolution_coordinates_2019_edited_updated_fields_final.csv",
 	"parameter":"PREC", 
@@ -14,5 +14,6 @@
 	"write_out":"false", 
 	"pickles":"/vol/v1/general_files/user_files/ben/sentinel_1_snow/pickles/", 
 	"anom_bool":"true", 
-	"state_abbr":"ID"
+	"state_abbr":"OR", 
+	"time_step":"weekly"
 }

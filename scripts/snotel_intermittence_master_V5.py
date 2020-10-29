@@ -58,48 +58,92 @@ def get_years(input_df):
 	years_max = max(years)
 	return years_min,years_max
 
-def combine_dfs(sites_ids,param_dict,start_date,end_date): 
+def combine_dfs(sites_ids,param_dict,start_date,end_date,year_of_interest,time_step): 
 	#station_id,param_dict,start_date,end_date = args
 	#here the param_dict is like {param:{station_id:df for param}}
-	dry = {}
-	warm = {}
-	warm_dry = {}
+	dry = dict(zip(sites_ids, ([] for _ in sites_ids)))
+	warm = dict(zip(sites_ids, ([] for _ in sites_ids)))
+	warm_dry = dict(zip(sites_ids, ([] for _ in sites_ids)))
+	dry_sites = dict(zip(sites_ids, ([] for _ in sites_ids)))
+	warm_sites = dict(zip(sites_ids, ([] for _ in sites_ids)))
+	warm_dry_sites = dict(zip(sites_ids, ([] for _ in sites_ids)))
 	for station_id in sites_ids: 
 
 		try:
-			#print(f'the station id is: {station_id}')
-			#combined_df = pd.concat([param_dict['wteq'][station_id],param_dict['prcp'][station_id],param_dict['tavg'][station_id]], axis=0) #combine params for use in the next step
 			wteq_df = param_dict['wteq'][station_id]
 			prcp_df = param_dict['prcp'][station_id]
 			tavg_df = param_dict['tavg'][station_id]
-			print(wteq_df)
-			print(prcp_df)
-			print(tavg_df)
 			start_year = max([get_years(wteq_df)[0],get_years(prcp_df)[0],get_years(tavg_df)[0]]) #get the min year from each of these dataframes and then get the most recent one so there is data for all years
 			end_year = min([get_years(wteq_df)[1],get_years(prcp_df)[1],get_years(tavg_df)[1]]) #get the max year from each of the dataframes and then take the min so you get the earliest year that has data for all years
-			#print('combined df is: ', combined_df)
-			# print('tav_df is ', tavg_df)
-			# print(f'tav_df shape is {tavg_df.shape}')
-			# test = tavg_df['TAVG_2005'][tavg_df[f'TAVG_2005']>0]
-			# print(test)
-			# print(f'test.shape is: {test.shape}')
-			# print(test.shape[0])
 		except KeyError: 
 			print('that station is missing')
 			continue
-		#small_df = combined_df.tail(1)
-		#max_values = pd.DataFrame(combined_df.max()).T
 		for year in range(start_year,end_year+1):#range(int(start_date[0:4])+1,int(end_date[0:4])+1): the first year will actually be the start of the water year, not the water year itself 
 			print(f'the year is {year}')
 			try: 
-				if (wteq_df[f'WTEQ_{year}'].max() < wteq_df[f'stat_WTEQ'][0]) and (prcp_df[f'PREC_{year}'].max()<prcp_df['stat_PREC'][0]) and ((tavg_df[f'TAVG_{year}'][tavg_df[f'TAVG_{year}']>0].shape[0])<tavg_df[f'stat_TAVG'][0]): #(tavg_df[f'TAVG_{year}'].mean()<tavg_df[f'stat_TAVG'][0]):
-					dry.update({station_id:year})
-				elif (wteq_df[f'WTEQ_{year}'].max() < wteq_df[f'stat_WTEQ'][0]) and (prcp_df[f'PREC_{year}'].max()>=prcp_df['stat_PREC'][0]): 
-					warm.update({station_id:year})
-				elif (wteq_df[f'WTEQ_{year}'].max() < wteq_df[f'stat_WTEQ'][0]) and (prcp_df[f'PREC_{year}'].max()<prcp_df['stat_PREC'][0]) and ((tavg_df[f'TAVG_{year}'][tavg_df[f'TAVG_{year}']>0].shape[0])>tavg_df[f'stat_TAVG'][0]): 
-					warm_dry.update({station_id:year})
+				if (time_step.lower() == 'weekly') and (year == year_of_interest): #run for just a year of weeks
+					print('running one year of interest')
+
+					for i in range(0,wteq_df.shape[0]+7,7): #get the number of rows in the dataframe which is the season length. Weekly is set to step by seven right now, not sure if that's the best way of doing it 
+						print('i is ', i)
+						try: 
+							wteq_df_sub = wteq_df.iloc[i:i+7]
+							prcp_df_sub = prcp_df.iloc[i:i+7]
+							tavg_df_sub = tavg_df.iloc[i:i+7]
+						except Exception as e: 
+							print('final week')
+							wteq_df_sub = wteq_df.iloc[i:]
+							prcp_df_sub = prcp_df.iloc[i:]
+							tavg_df_sub = tavg_df.iloc[i:]
+						wteq_df_sub.drop(columns='stat_WTEQ',inplace=True)
+						prcp_df_sub.drop(columns='stat_PREC',inplace=True)
+						tavg_df_sub.drop(columns='stat_TAVG',inplace=True)
+						wteq_df_sub['week_wteq'] = (wteq_df_sub.max()).mean()
+						#print('df with week col added is ', wteq_df_sub)
+						prcp_df_sub['week_prcp'] = (prcp_df_sub.max()).mean()
+						#print(prcp_df_sub)
+						tavg_df_sub['week_tavg'] = (tavg_df_sub[tavg_df_sub > 0 ].count()).mean() 
+						#print(tavg_df_sub)
+						if (wteq_df_sub[f'WTEQ_{year}'].max() < wteq_df_sub[f'week_wteq'].iloc[0]) and (prcp_df_sub[f'PREC_{year}'].max()<prcp_df_sub['week_prcp'].iloc[0]) and ((tavg_df_sub[f'TAVG_{year}'][tavg_df_sub[f'TAVG_{year}']>0].shape[0])<tavg_df_sub[f'week_tavg'].iloc[0]): #(tavg_df[f'TAVG_{year}'].mean()<tavg_df[f'stat_TAVG'][0]):
+							#dry_year.update({station_id:i+7})
+							dry_sites[station_id].append(i+7)#dry_sites.update({station_id:dry_sites[station_id].append(i+7)})
+						elif (wteq_df_sub[f'WTEQ_{year}'].max() < wteq_df_sub[f'week_wteq'].iloc[0]) and (prcp_df_sub[f'PREC_{year}'].max()>=prcp_df_sub['week_prcp'].iloc[0]): 
+							#warm_year.update({station_id:i+7})
+							warm_sites[station_id].append(i+7)#warm_sites.update({station_id:warm_sites[station_id].append(i+7)})
+						elif (wteq_df_sub[f'WTEQ_{year}'].max() < wteq_df_sub[f'week_wteq'].iloc[0]) and (prcp_df_sub[f'PREC_{year}'].max()<prcp_df_sub['week_prcp'].iloc[0]) and ((tavg_df_sub[f'TAVG_{year}'][tavg_df_sub[f'TAVG_{year}']>0].shape[0])>tavg_df_sub[f'week_tavg'].iloc[0]): 
+							#warm_dry_year.update({station_id:i+7})
+							warm_dry_sites[station_id].append(i+7)#warm_dry_sites.update({station_id:warm_dry_sites[station_id].append(i+7)})
+						else:
+							print('passed')
+							# dry_year.update({station_id:9999})
+							# warm_year.update({station_id:9999})
+							# warm_dry_year.update({station_id:9999})
+						
+				# else: 
+				# 	pass
+				#run for full seasons
+				elif time_step.lower() == 'annual': 
+					print('running annual')
+					if (wteq_df[f'WTEQ_{year}'].max() < wteq_df[f'stat_WTEQ'][0]) and (prcp_df[f'PREC_{year}'].max()<prcp_df['stat_PREC'][0]) and ((tavg_df[f'TAVG_{year}'][tavg_df[f'TAVG_{year}']>0].shape[0])<tavg_df[f'stat_TAVG'][0]): #(tavg_df[f'TAVG_{year}'].mean()<tavg_df[f'stat_TAVG'][0]):
+						dry[station_id].append(year)#dry.update({station_id:year})
+					elif (wteq_df[f'WTEQ_{year}'].max() < wteq_df[f'stat_WTEQ'][0]) and (prcp_df[f'PREC_{year}'].max()>=prcp_df['stat_PREC'][0]): 
+						warm[station_id].append(year)#warm.update({station_id:year})
+					elif (wteq_df[f'WTEQ_{year}'].max() < wteq_df[f'stat_WTEQ'][0]) and (prcp_df[f'PREC_{year}'].max()<prcp_df['stat_PREC'][0]) and ((tavg_df[f'TAVG_{year}'][tavg_df[f'TAVG_{year}']>0].shape[0])>tavg_df[f'stat_TAVG'][0]): 
+						warm_dry[station_id].append(year)#warm_dry.update({station_id:year})
+					else: 
+						pass
+						print(f'station {station_id} for {year} was normal or above average. The swe value was: {wteq_df[f"WTEQ_{year}"].max()} and the long term mean max value was: {wteq_df[f"stat_WTEQ"][0]}')
 				else: 
-					print(f'station {station_id} for {year} was normal or above average. The swe value was: {wteq_df[f"WTEQ_{year}"].max()} and the long term mean max value was: {wteq_df[f"stat_WTEQ"][0]}')
+					pass#print('Double check your time step. It can be weekly or annual')
+				
+				# 			# else: 
+				# 			# 	print(f'station {station_id} for {year} was normal or above average. The swe value was: {wteq_df[f"WTEQ_{year}"].max()} and the long term mean max value was: {wteq_df[f"stat_WTEQ"][0]}')
+				# 		except Exception as e: 
+				# 			print('I am the error you seek',e)
+				# 			raise
+				# 			continue 
+				# else: 
+				# 	pass
 			#print(f'year is {year}')
 			#yearly = max_values.filter(like=str(year))
 			#l = [str(year),'stat']
@@ -118,34 +162,45 @@ def combine_dfs(sites_ids,param_dict,start_date,end_date):
 			except Exception as e:
 				print(f'error is: {e}')
 				#print(f'The year {year} does not exist in the df whose first year is: {wteq_df.columns[0]}')
-				
-				continue	
+				continue
+			
 	#print(dry,warm,warm_dry)
 	# 	small_df=
 	#inter_list = combined_df.index[df['BoolCol'] == True].tolist()
 	#df.filter(like='spike').columns
+	output_years = {'dry':dry_sites,'warm':warm_sites,'warm_dry':warm_dry_sites}
 	output = {'dry':dry,'warm':warm,'warm_dry':warm_dry}
 	print(output)
-	return output
+	print(output_years)
+	return output,output_years
 
-def plot_anoms(input_dict,anom_start_date,anom_end_date): 
+def plot_anoms(input_dict,anom_start_date,anom_end_date,state,year_of_interest,time_step): 
+	dry_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in input_dict['dry'].items()]))
+	warm_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in input_dict['warm'].items()]))
+	warm_dry_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in input_dict['warm_dry'].items()]))
+	#pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in d.items() ]))
+	dry_stats=pd.Series(dry_df.values.ravel()).dropna().value_counts()
+	warm_stats=pd.Series(warm_df.values.ravel()).dropna().value_counts()
+	warm_dry_stats=pd.Series(warm_dry_df.values.ravel()).dropna().value_counts()
+	dry_stats = pd.DataFrame({'week':dry_stats.index,'counts':dry_stats.values})
+	warm_stats = pd.DataFrame({'week':warm_stats.index,'counts':warm_stats.values})
+	warm_dry_stats = pd.DataFrame({'week':warm_dry_stats.index,'counts':warm_dry_stats.values})
+	#pd.DataFrame({'email':sf.index, 'list':sf.values})
 
-	width = 1.0     # gives histogram aspect to the bar diagram
-	plot_dict = {}
-	for k,v in input_dict.items(): 
-		count_dict = {}
-		vals = list(v.values())
-		for i in set(vals): #get the unique years
-			counts = vals.count(i) #get a count of each year
-			count_dict.update({i:counts})
-		plot_dict.update({k:count_dict})
+
+	plot_dict = {'dry':dry_stats,'warm':warm_stats,'warm_dry':warm_dry_stats}
+	#print(dry_df)
+	#print(dry_stats)
+	#print(dry_df)
 	fig,ax=plt.subplots(1,3,sharex=True,sharey=True)
 	ax = ax.flatten()
 	count = 0
 	for k,v in plot_dict.items(): 
-		ax[count].bar(list(v.keys()), v.values(), color='g')
-		#ax[count].set_xticks(range(int(anom_start_date[0:4])+1,int(anom_end_date[0:4])+1))
-		ax[count].set_title(f'{k} snow drought')
+		ax[count].bar(v.week, v.counts, color='g')
+		if time_step.lower() == 'weekly': 
+			ax[count].set_title(f'{year_of_interest} {state} weekly \n{k} snow drought')	
+		else:
+			ax[count].set_title(f'{state} {k} snow drought')
 		count +=1 
 	# plt.xticks(rotation=45)
 	plt.tight_layout()
@@ -153,6 +208,31 @@ def plot_anoms(input_dict,anom_start_date,anom_end_date):
 	plt.close('all')
 		
 	return plot_dict
+# def plot_anoms(input_dict,anom_start_date,anom_end_date): 
+
+# 	width = 1.0     # gives histogram aspect to the bar diagram
+# 	plot_dict = {}
+# 	for k,v in input_dict.items(): 
+# 		count_dict = {}
+# 		vals = list(v.values())
+# 		for i in set(vals): #get the unique years
+# 			counts = vals.count(i) #get a count of each year
+# 			count_dict.update({i:counts})
+# 		plot_dict.update({k:count_dict})
+# 	fig,ax=plt.subplots(1,3,sharex=True,sharey=True)
+# 	ax = ax.flatten()
+# 	count = 0
+# 	for k,v in plot_dict.items(): 
+# 		ax[count].bar(list(v.keys()), v.values(), color='g')
+# 		#ax[count].set_xticks(range(int(anom_start_date[0:4])+1,int(anom_end_date[0:4])+1))
+# 		ax[count].set_title(f'{k} snow drought')
+# 		count +=1 
+# 	# plt.xticks(rotation=45)
+# 	plt.tight_layout()
+# 	plt.show()
+# 	plt.close('all')
+		
+# 	return plot_dict
 
 def format_dict(input_dict,modifier): 
 		return {f'{modifier}_'+k:v for k,v in input_dict.items()}
@@ -202,6 +282,7 @@ def main():
 		pickles = variables["pickles"]
 		anom_bool = variables["anom_bool"]
 		state_abbr = variables['state_abbr']
+		time_step = variables['time_step']
 	#run_prep_training = sys.argv[1].lower() == 'true' 
 	#get some of the params needed
 	stations_df = pd.read_csv(stations)
@@ -232,7 +313,6 @@ def main():
 		# param_dict = {}
 
 		#read the dfs of each snotel param into a dict for further processing 
-		pass
 		wteq_wy = combine.StationDataCleaning(combine.pickle_opener(
 			output_filepath+f'{state}_WTEQ_{anom_start_date}_{anom_end_date}_snotel_data_list'),
 			'WTEQ',season)
@@ -262,17 +342,20 @@ def main():
 	# ##########################################################################
 	#this is working and generates the snow drought years
 	#generate anomolies 
-	snow_droughts=combine_dfs(sites_ids,param_dict,anom_start_date,anom_end_date)
-	#uncomment to make plot of anomaly years 
+	year_of_interest = 2001
+	snow_droughts=combine_dfs(sites_ids,param_dict,anom_start_date,anom_end_date,year_of_interest,time_step)
+	#test = 	snow_droughts=combine_dfs(sites_ids,param_dict,anom_start_date,anom_end_date,year_of_interest)
 
-	year_counts=plot_anoms(snow_droughts,anom_start_date,anom_end_date)
-	#print(anomolies)
-	#collect some data on these results
-	#anom_dict = {'num_stations':len(sites_ids),'count_of_years':year_counts}
-	#print('anom dict is: ', anom_dict)
-	anom_df = pd.DataFrame.from_dict(year_counts)
-	#if season.lower() == ''
-	anom_df.to_csv(f'/vol/v1/general_files/user_files/ben/excel_files/{state}_anom_outputs_{season}_degree_days.csv')
+	#uncomment to make plot of anomaly years 
+	if time_step.lower() == 'annual': 
+		plot_data = 0
+	elif time_step.lower() == 'weekly': 
+		plot_data = 1
+	year_counts=plot_anoms(snow_droughts[plot_data],anom_start_date,anom_end_date,state_abbr,year_of_interest,time_step)
+	# #collect some data on these results
+	# anom_dict = {'num_stations':len(sites_ids),'count_of_years':year_counts}
+	# anom_df = pd.DataFrame.from_dict(year_counts)
+	# anom_df.to_csv(f'/vol/v1/general_files/user_files/ben/excel_files/{state}_anom_outputs_{season}_degree_days_{year_of_interest}_working.csv')
 	#########################################################################
 	#this might be working and should be used to generate the multiple linear regressions
 	#print(param_dict['wteq'])
