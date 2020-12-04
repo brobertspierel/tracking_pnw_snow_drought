@@ -332,50 +332,69 @@ class PrepPlottingData():
             except: 
                 print('Something is wrong with the format of your df it looks like: ')
                 df = pd.read_csv(self.input_csv)
-                print(df.head())
-        
-        return df,(df['date_time'].iloc[-2]).year #get the second to last element in case there is a nan. This will still be the water year 
+                print(df.head()) 
 
-    def clean_gee_data(self): 
+        return df#,(df['date_time'].iloc[-2]) the second item was commented out on 11/5/2020.year #get the second to last element in case there is a nan. This will still be the water year 
+
+    def clean_gee_data(self,id_column): 
+        
         df = self.gee_data #df of gee data that was read in externally with csv_to_df
-        # print('the intital df is: ',df)
-        # print(df['site_num'])
-        # print(type(df['site_num'][0]))
-        try: 
-            df = df.loc[df['site_num']==self.station_id]
-            #print('df here is: ',df)
-        except: 
-            raise KeyError('Doule check your column headers. This should be the site id and the default is site_num.')
         
-        #the sentinel images in GEE are split into two tiles on a day there is an overpass, combine them. 
-        try: 
-            df1 = df.groupby([df['date_time'].dt.date])['filter'].sum().reset_index() #filter is the default column name 
-        except:
-            print('something went wrong with the groupby') 
-            raise KeyError('Please double check the column header you are using. The defualt from GEE is filter.')
-        #df = df.groupby([df['Date_Time'].dt.date])['B'].mean()
+        if 'huc' in id_column: #cut dataframes so they're just by huc level 
+            df_list = []
+            #print(type(df[id_column].iloc[0]))
+            for huc_id in set(list(df[str(id_column)])): 
+                #print('the huc id is: ', huc_id)
+                try: 
+                    df1 = df.loc[df['site_num']==self.station_id]
+                    #print('df here is: ',df)
+                except Exception as e: 
+                    #print('Double check your column headers. This should be the site id and the default is site_num')
+                    print('Processing as huc levels...')
+                    df1 = df.loc[df[str(id_column)]==int(huc_id)]
+                    #print(df1)
+                    #raise KeyError('Double check your column headers. This should be the site id and the default is site_num.')
+                
+                #the sentinel images in GEE are split into two tiles on a day there is an overpass, combine them. 
+                try: 
+                    df1 = df1.groupby([df1['date_time'].dt.date,id_column])['filter'].sum().reset_index() #filter is the default column name 
+                except Exception as e:
+                    print('Something went wrong with the groupby') 
+                    print('Please double check the column header you are using. The defualt from GEE is filter')
+                    #raise KeyError('Please double check the column header you are using. The defualt from GEE is filter.')
+                #df = df.groupby([df['Date_Time'].dt.date])['B'].mean()
 
-        #df1 = (df.set_index('date').resample('D')['filter'].sum()).reset_index()
-        #print('second df is: ', df1)
-        try: 
-            #get the week of year
-            df1['date_time'] = pd.to_datetime(df1['date_time'])
-            df1['week_of_year'] = df1['date_time'].dt.week 
-            
-            #add a month col
-            df1['month'] = df1['date_time'].dt.month
+                #df1 = (df.set_index('date').resample('D')['filter'].sum()).reset_index()
+                #print('second df is: ', df1)
+                try: 
+                    #get the week of year
+                    df1['date_time'] = pd.to_datetime(df1['date_time'])
+                    df1['week_of_year'] = df1['date_time'].dt.week 
+                    
+                    #add a month col
+                    df1['month'] = df1['date_time'].dt.month
 
-            #get the week of year where October 1 falls for the year of interest 
-            base_week = datetime.datetime(df1.date_time[0].to_pydatetime().year,10,1).isocalendar()[1]
-            df1.loc[df1.month >= 10,'week_of_year'] = df1.week_of_year-base_week
-            #adjust values that are after the first of the calendar year 
-            df1.loc[df1.month < 10, 'week_of_year'] = df1.week_of_year + 12
-        except IndexError: 
-            raise
-            print(f'That df seems to be empty. The start date is {df["date"][0]} and the id is {self.station_id}')
+                    #get the week of year where October 1 falls for the year of interest 
+                    base_week = datetime.datetime(df1.date_time[0].to_pydatetime().year,10,1).isocalendar()[1]
+                    df1.loc[df1.month >= 10,'week_of_year'] = df1.week_of_year-base_week
+                    #adjust values that are after the first of the calendar year 
+                    df1.loc[df1.month < 10, 'week_of_year'] = df1.week_of_year + 12
+                except IndexError: 
+                    #raise
+                    try: 
+                        print(f'That df seems to be empty. The start date is {df["date"][0]} and the id is {self.station_id}')
+                    except Exception as e: 
+                        pass
+                #print(df1)
+                df_list.append(df1)
+            df_out = pd.concat(df_list)
+            #print(df_out)
+            #df_out.to_csv("/vol/v1/general_files/user_files/ben/sentinel_1_snow/tests/example_output.csv")
+        else: 
+            print('Processing huc layout right now. If you want something else change the format of your csv')
         #test the std for the sentinel data
         #df1['filter'] = df1['filter'].rolling(2).std()
-        return df1
+        return df_out
 
     def make_plot_dfs(self,year): 
         #get sentinel data 

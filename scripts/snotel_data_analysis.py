@@ -18,7 +18,6 @@ from collections import defaultdict
 #import geoplot
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from matplotlib import colors
 
 
 def run_model(huc_id,snotel_param_dict,start_date,end_date,sentinel_dict):
@@ -207,7 +206,6 @@ def snow_drought_ratios(input_dict,num_weeks):
 	#.rename(columns=['station_id','weekly_ratio']) 
 	# print(warm_dry_df)
 	# print(warm_dry_df.shape)
-
 	return output_dict
 def reformat_dict(input_dict): 
 	return {int(k):round(v,2) for k,v in input_dict.items()}
@@ -220,13 +218,10 @@ def plot_snow_drought_ratios(input_dict,pnw_shapefile,huc_shapefile,us_boundary,
 	#print(input_dict)
 	#print(type(gdf['site_num'].iloc[0]))
 
-	gdf['dry'] = gdf['site_num'].map(reformat_dict(input_dict['dry'])) 
+	gdf['dry'] = gdf['site_num'].map(reformat_dict(input_dict['dry']))
 	gdf['warm'] = gdf['site_num'].map(reformat_dict(input_dict['warm']))
 	gdf['warm_dry'] = gdf['site_num'].map(reformat_dict(input_dict['warm_dry']))
 	type_list = ['dry','warm','warm_dry']
-	print('gdf is: ')
-	print(gdf.dry)
-	print(gdf.warm_dry)
 	#print(gdf)countries_gdf = geopandas.read_file("package.gpkg", layer='countries')
 	#get background shapefiles
 	hucs=gpd.read_file(huc_shapefile)
@@ -236,26 +231,14 @@ def plot_snow_drought_ratios(input_dict,pnw_shapefile,huc_shapefile,us_boundary,
 	pnw = gpd.read_file(pnw_shapefile)
 	us_bounds = gpd.read_file(us_boundary)
 	#df["B"] = df["A"].map(equiv)
-	fig, ax = plt.subplots(1, 3,figsize=(18,18))
-	#ax = ax.flatten()
+	fig, ax = plt.subplots(1, 3,figsize=(15,15))
+	ax = ax.flatten()
 	for x in range(3):  
-		#divider = make_axes_locatable(ax[x])
-		#cax = divider.append_axes("right", size="5%", pad=0.1)
-		#cmap = 'Reds'#colors.ListedColormap(['b','g','y','r'])
-		#bounds=[0,.25,.5,.75,1]
-		#cmap = colors.ListedColormap(['b','g','y','r'])#
-		#norm = colors.BoundaryNorm(bounds, cmap)
 		divider = make_axes_locatable(ax[x])
-		cax = divider.append_axes('right', size='5%', pad=0.05)
+		cax = divider.append_axes("right", size="5%", pad=0.1)
 		hucs.plot(ax=ax[x],color='lightgray', edgecolor='black')
-		pcm=gdf.plot(column=type_list[x],ax=ax[x],legend=True,cax=cax,cmap='Reds',vmin=0,vmax=1)#,norm=norm)
-		#fig.colorbar(pcm, cax=cax, orientation='vertical')
-
-
-		#divider = make_axes_locatable(ax[x])
-		#cax = divider.append_axes("right", size="5%", pad=0.1)
-		#cbar=fig.colorbar(pcm,cax=cax)
-		#ax[x].set_clim(vmin=0, vmax=1)
+		gdf.plot(column=type_list[x],ax=ax[x],legend=True,cax=cax,cmap='Reds')
+		ax[x].set_clim(0, 1)
 
 		if '_' in type_list[x]: 
 			drought_type=" ".join(type_list[x].split("_")).capitalize()
@@ -268,42 +251,11 @@ def plot_snow_drought_ratios(input_dict,pnw_shapefile,huc_shapefile,us_boundary,
 		axins = inset_axes(ax[0], width="30%", height="40%", loc=4)#,bbox_to_anchor=(.1, .5, .5, .5),bbox_transform=ax[x].transAxes)
 		axins.tick_params(labelleft=False, labelbottom=False)
 		us_bounds.plot(ax=axins,color='darkgray', edgecolor='black')
-		hucs.plot(ax=axins,color='red', edgecolor='black')
+		pnw.plot(ax=axins,color='red', edgecolor='black')
 
 	plt.tight_layout()
 	plt.show()
 	plt.close('all')
-
-def generate_stats(input_dict,anom_start_date,anom_end_date,state,year_of_interest,time_step,hucs): 
-	output_dict = {}
-	for k1,v1 in input_dict.items(): #each of these are now formatted as the huc id is k and then each v1 is a dict of warm,dry,warm dry with each of those a dictionary of stations/years or weeks. Commented out 11/30/2020 to get counts of weeks
-		#if k1 in eastern: 
-		#print('k1 is: ',k1)
-		#print('v1 is: ', v1)
-		dry_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in v1['dry'].items()])) #changed back from v1 to input dict 11/30/2020
-		warm_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in v1['warm'].items()]))
-		warm_dry_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in v1['warm_dry'].items()]))
-		#pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in d.items() ]))
-		#print(dry_df)
-		dry_stats=pd.Series(dry_df.values.ravel()).dropna().value_counts()
-		warm_stats=pd.Series(warm_df.values.ravel()).dropna().value_counts()
-		warm_dry_stats=pd.Series(warm_dry_df.values.ravel()).dropna().value_counts()
-		#print(dry_stats)
-		dry_stats = pd.DataFrame({'time':dry_stats.index,'counts':dry_stats.values})
-		warm_stats = pd.DataFrame({'time':warm_stats.index,'counts':warm_stats.values})
-		warm_dry_stats = pd.DataFrame({'time':warm_dry_stats.index,'counts':warm_dry_stats.values})
-		#pd.DataFrame({'email':sf.index, 'list':sf.values})
-		#print(dry_stats)
-
-		counts_dict = {'dry':dry_stats,'warm':warm_stats,'warm_dry':warm_dry_stats}
-		output_dict.update({k1:counts_dict})
-		#print(dry_df)
-		#print(plot_dict)
-			#print(dry_stats)
-			#print(dry_df)
-			#for i in range(4): #iterate the rows
-	print(output_dict)
-	return output_dict
 
 def plot_anoms(input_dict,anom_start_date,anom_end_date,state,year_of_interest,time_step,hucs): 
 	western = ['1708','1801','1710','1711','1709']
@@ -316,47 +268,73 @@ def plot_anoms(input_dict,anom_start_date,anom_end_date,state,year_of_interest,t
 	fig,ax=plt.subplots(len(eastern),3,sharex=True,sharey=True,figsize=(15,10))
 
 	for k1,v1 in input_dict.items(): #each of these are now formatted as the huc id is k and then each v1 is a dict of warm,dry,warm dry with each of those a dictionary of stations/years or weeks
-		#if k1 in eastern: 
+		if k1 in eastern: 
 			#print('k1 is: ',k1)
 			#print('v1 is: ', v1)
-		dry_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in v1['dry'].items()])) #changed from input_dict 
-		warm_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in v1['warm'].items()]))
-		warm_dry_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in v1['warm_dry'].items()]))
-		#pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in d.items() ]))
-		dry_stats=pd.Series(dry_df.values.ravel()).dropna().value_counts()
-		warm_stats=pd.Series(warm_df.values.ravel()).dropna().value_counts()
-		warm_dry_stats=pd.Series(warm_dry_df.values.ravel()).dropna().value_counts()
-		
-		dry_stats = pd.DataFrame({'time':dry_stats.index,'counts':dry_stats.values})
-		warm_stats = pd.DataFrame({'time':warm_stats.index,'counts':warm_stats.values})
-		warm_dry_stats = pd.DataFrame({'time':warm_dry_stats.index,'counts':warm_dry_stats.values})
-		#pd.DataFrame({'email':sf.index, 'list':sf.values})
+			dry_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in v1['dry'].items()])) #changed from input_dict 
+			warm_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in v1['warm'].items()]))
+			warm_dry_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in v1['warm_dry'].items()]))
+			#pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in d.items() ]))
+			dry_stats=pd.Series(dry_df.values.ravel()).dropna().value_counts()
+			warm_stats=pd.Series(warm_df.values.ravel()).dropna().value_counts()
+			warm_dry_stats=pd.Series(warm_dry_df.values.ravel()).dropna().value_counts()
+			
+			dry_stats = pd.DataFrame({'time':dry_stats.index,'counts':dry_stats.values})
+			warm_stats = pd.DataFrame({'time':warm_stats.index,'counts':warm_stats.values})
+			warm_dry_stats = pd.DataFrame({'time':warm_dry_stats.index,'counts':warm_dry_stats.values})
+			#pd.DataFrame({'email':sf.index, 'list':sf.values})
 
 
-		plot_dict = {'dry':dry_stats,'warm':warm_stats,'warm_dry':warm_dry_stats}
-		#print(dry_df)
-		print(plot_dict)
-		#print(dry_stats)
-		#print(dry_df)
-		#for i in range(4): #iterate the rows
-		count = 0
-		for k,v in plot_dict.items(): 
-			ax[count1][count].bar(v.time, v.counts, color='g') #plot by row and then for cols plot three across
-			if time_step.lower() == 'weekly': 
-				ax[count1][count].set_title(f'HUC {k1} {year_of_interest} weekly \n{k} snow drought')	
-			else:
-				ax[count1][count].set_title(f'HUC {k1} {k} snow drought')
-			count +=1
-		count1+=1
+			plot_dict = {'dry':dry_stats,'warm':warm_stats,'warm_dry':warm_dry_stats}
+			#print(dry_df)
+			#print(dry_stats)
+			#print(dry_df)
+			#for i in range(4): #iterate the rows
+			count = 0
+			for k,v in plot_dict.items(): 
+				ax[count1][count].bar(v.time, v.counts, color='g') #plot by row and then for cols plot three across
+				if time_step.lower() == 'weekly': 
+					ax[count1][count].set_title(f'HUC {k1} {year_of_interest} weekly \n{k} snow drought')	
+				else:
+					ax[count1][count].set_title(f'HUC {k1} {k} snow drought')
+				count +=1
+			count1+=1
 			# plt.xticks(rotation=45)
-		# else: 
-		# 	continue
-
+		else: 
+			continue
 	plt.tight_layout()
 	plt.show()
 	plt.close('all')
+	# else: 
+	# 	print('There is a disconnect in the number of plots')
 		
-	return plot_dict
+	#return plot_dict
+# def plot_anoms(input_dict,anom_start_date,anom_end_date): 
+
+# 	width = 1.0     # gives histogram aspect to the bar diagram
+# 	plot_dict = {}
+# 	for k,v in input_dict.items(): 
+# 		count_dict = {}
+# 		vals = list(v.values())
+# 		for i in set(vals): #get the unique years
+# 			counts = vals.count(i) #get a count of each year
+# 			count_dict.update({i:counts})
+# 		plot_dict.update({k:count_dict})
+# 	fig,ax=plt.subplots(1,3,sharex=True,sharey=True)
+# 	ax = ax.flatten()
+# 	count = 0
+# 	for k,v in plot_dict.items(): 
+# 		ax[count].bar(list(v.keys()), v.values(), color='g')
+# 		#ax[count].set_xticks(range(int(anom_start_date[0:4])+1,int(anom_end_date[0:4])+1))
+# 		ax[count].set_title(f'{k} snow drought')
+# 		count +=1 
+# 	# plt.xticks(rotation=45)
+# 	plt.tight_layout()
+# 	plt.show()
+# 	plt.close('all')
+		
+# 	return plot_dict
+
 def format_dict(input_dict,modifier): 
 		return {f'{modifier}_'+k:v for k,v in input_dict.items()}
 
@@ -488,7 +466,8 @@ def main():
 
 	# ##########################################################################
 	#this is working and generates the snow drought years
-	year_of_interest = 2015
+	#generate anomolies 
+	year_of_interest = 2018
 
 	if os.path.exists(filename): 
 		master_param_dict=combine.pickle_opener(filename)
@@ -513,30 +492,14 @@ def main():
 	else: 
 		snow_droughts=combine.pickle_opener(snow_drought_filename)
 		print('working from pickles')
-		print(snow_droughts)
-	#get the plot of counts of snow drought by year
-	#plot_anoms(snow_droughts[0],anom_start_date,anom_end_date,None,year_of_interest,time_step,huc_list)
-	#print(snow_droughts[plot_data])
-	#plot snow drought ratios
 	ratios = snow_drought_ratios(snow_droughts[plot_data],snow_droughts[2])
 	visualize = plot_snow_drought_ratios(ratios,pnw_shapefile,huc_shapefile,us_boundary,stations_df,year_of_interest)
-	# basin_drought_filename = pickles+'drought_by_basin_dict'
-	#drought_by_basin = define_hucs(snow_droughts[plot_data],huc_dict) #changed from ratios 11/30/2020
-	#print(drought_by_basin)
-	# if not os.path.exists(basin_drought_filename): 
-	# 	pickle.dump(drought_by_basin, open(basin_drought_filename, 'ab'))
-	# #print(drought_by_basin)
-	#station_counts_by_week=generate_stats(drought_by_basin,anom_start_date,anom_end_date,state_abbr,year_of_interest,time_step,huc_list) #formerly plot_anoms #changed from snow_droughts[plot_data] as input so we generate based on hucs
-	#counts_filename = output_filepath+f'{year_of_interest}_counts_of_stations_by_week_and_by_huc' #filename for a dictionary of dataframes that have drought types and then are a time (weeks but given in last day of the week from Oct 1) and then the number of stations in that week
-	# #collect some data on these results
-	# if not os.path.exists(counts_filename): 
-	# 	print('Pickling station counts...')
-	# 	pickle.dump(station_counts_by_week, open(counts_filename,'ab'))
-
+	#drought_by_basin = define_hucs(snow_droughts[plot_data],huc_dict)
+	#year_counts=plot_anoms(drought_by_basin,anom_start_date,anom_end_date,state_abbr,year_of_interest,time_step,huc_list)
+	#collect some data on these results
 	# anom_dict = {'num_stations':len(sites_ids),'count_of_years':year_counts}
 	# anom_df = pd.DataFrame.from_dict(year_counts)
 	# anom_df.to_csv(f'/vol/v1/general_files/user_files/ben/excel_files/{state}_anom_outputs_{season}_degree_days_{year_of_interest}_working.csv')
-	
 	#########################################################################
 	#this might be working and should be used to generate the multiple linear regressions
 	#print(param_dict['wteq'])
@@ -638,86 +601,6 @@ if __name__ == '__main__':
     main()
 
 #currently working
-####################
-# #plot anoms function
-# def plot_anoms(input_dict,anom_start_date,anom_end_date,state,year_of_interest,time_step,hucs): 
-# 	western = ['1708','1801','1710','1711','1709']
-# 	eastern = ['1701','1702','1705','1703','1601','1707','1706','1712','1704']
-
-# 	#ax = ax.flatten()
-
-# 	count1 = 0
-# 	# if count1 <= len(western): 
-# 	fig,ax=plt.subplots(len(eastern),3,sharex=True,sharey=True,figsize=(15,10))
-
-# 	for k1,v1 in input_dict.items(): #each of these are now formatted as the huc id is k and then each v1 is a dict of warm,dry,warm dry with each of those a dictionary of stations/years or weeks
-# 		#if k1 in eastern: 
-# 			#print('k1 is: ',k1)
-# 			#print('v1 is: ', v1)
-# 			dry_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in v1['dry'].items()])) #changed from input_dict 
-# 			warm_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in v1['warm'].items()]))
-# 			warm_dry_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in v1['warm_dry'].items()]))
-# 			#pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in d.items() ]))
-# 			dry_stats=pd.Series(dry_df.values.ravel()).dropna().value_counts()
-# 			warm_stats=pd.Series(warm_df.values.ravel()).dropna().value_counts()
-# 			warm_dry_stats=pd.Series(warm_dry_df.values.ravel()).dropna().value_counts()
-			
-# 			dry_stats = pd.DataFrame({'time':dry_stats.index,'counts':dry_stats.values})
-# 			warm_stats = pd.DataFrame({'time':warm_stats.index,'counts':warm_stats.values})
-# 			warm_dry_stats = pd.DataFrame({'time':warm_dry_stats.index,'counts':warm_dry_stats.values})
-# 			#pd.DataFrame({'email':sf.index, 'list':sf.values})
-
-
-# 			plot_dict = {'dry':dry_stats,'warm':warm_stats,'warm_dry':warm_dry_stats}
-# 			#print(dry_df)
-# 			print(plot_dict)
-# 			#print(dry_stats)
-# 			#print(dry_df)
-# 			#for i in range(4): #iterate the rows
-# 			count = 0
-# 			for k,v in plot_dict.items(): 
-# 				ax[count1][count].bar(v.time, v.counts, color='g') #plot by row and then for cols plot three across
-# 				if time_step.lower() == 'weekly': 
-# 					ax[count1][count].set_title(f'HUC {k1} {year_of_interest} weekly \n{k} snow drought')	
-# 				else:
-# 					ax[count1][count].set_title(f'HUC {k1} {k} snow drought')
-# 				count +=1
-# 			count1+=1
-# 			# plt.xticks(rotation=45)
-# 		else: 
-# 			continue
-# 	# plt.tight_layout()
-# 	# plt.show()
-# 	# plt.close('all')
-# 	# else: 
-# 	# 	print('There is a disconnect in the number of plots')
-		
-# 	#return plot_dict
-# # def plot_anoms(input_dict,anom_start_date,anom_end_date): 
-
-# # 	width = 1.0     # gives histogram aspect to the bar diagram
-# # 	plot_dict = {}
-# # 	for k,v in input_dict.items(): 
-# # 		count_dict = {}
-# # 		vals = list(v.values())
-# # 		for i in set(vals): #get the unique years
-# # 			counts = vals.count(i) #get a count of each year
-# # 			count_dict.update({i:counts})
-# # 		plot_dict.update({k:count_dict})
-# # 	fig,ax=plt.subplots(1,3,sharex=True,sharey=True)
-# # 	ax = ax.flatten()
-# # 	count = 0
-# # 	for k,v in plot_dict.items(): 
-# # 		ax[count].bar(list(v.keys()), v.values(), color='g')
-# # 		#ax[count].set_xticks(range(int(anom_start_date[0:4])+1,int(anom_end_date[0:4])+1))
-# # 		ax[count].set_title(f'{k} snow drought')
-# # 		count +=1 
-# # 	# plt.xticks(rotation=45)
-# # 	plt.tight_layout()
-# # 	plt.show()
-# # 	plt.close('all')
-		
-# 	return plot_dict
 # def run_model(station_id,param_dict,start_date,end_date,sentinel_dict):
 # 	#station_id,param_dict,start_date,end_date,sentinel_dict = args 
 # 	station_ls = []

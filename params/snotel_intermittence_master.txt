@@ -1,6 +1,8 @@
 {
 	"state_shapefile":"/vol/v1/general_files/user_files/ben/k_means/temp_files/oregon_state_grid_reprojected_epsg_4326.shp",
-	"pnw_shapefile":"None",
+	"huc_shapefile":"/vol/v1/general_files/user_files/ben/shapefiles/hucs/hucs/huc4_full.shp",
+	"us_boundary":"/vol/v1/general_files/user_files/ben/shapefiles/contiguous_us_dissolve.shp",
+	"pnw_shapefile":"/vol/v1/general_files/user_files/ben/shapefiles/states/PNW_states.shp",
 	"epsg": "4326",
 	"output_filepath": "/vol/v1/general_files/user_files/ben/sentinel_1_snow/pickles/", 
 	"season": "full_winter", 
