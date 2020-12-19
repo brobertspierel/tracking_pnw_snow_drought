@@ -1,4 +1,0 @@
-frank,10
-steve,12
-bob,12
-hillary,15

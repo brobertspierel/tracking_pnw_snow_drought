@@ -8,17 +8,17 @@ import seaborn as sns
 from datetime import datetime
 def get_sp_data(csv_dir): 
 	csv_list = []
-	for csv in sorted(glob.glob(csv_dir+'*huc08_mean_elev.csv')): #this is hardcoded and should be changed  
-		df = pd.read_csv(csv,parse_dates=True) 
-		df.rename(columns={'system:time_start':'date'},inplace=True)
-		df['date'] = pd.to_datetime(df['date'])
-		#df['huc'] = os.path.split(csv)[1].split('_')[2] #hardcoded, this should be changed
-		csv_list.append(df)
-	output_df = pd.concat(csv_list,axis=0)
+	#for csv in sorted(glob.glob(csv_dir+'*huc08_mean_elev.csv')): #this is hardcoded and should be changed  
+	df = pd.read_csv(csv_dir,parse_dates=True) 
+	df.rename(columns={'system:time_start':'date'},inplace=True)
+	df['date'] = pd.to_datetime(df['date'])
+	#df['huc'] = os.path.split(csv)[1].split('_')[2] #hardcoded, this should be changed
+	#csv_list.append(df)
+	#output_df = pd.concat(csv_list,axis=0)
 	
 	#plot_df = output_df[output_df['site_num']==1704]
 	#get the huc ids
-	return output_df
+	return df
 def plot_long_term_sp_data(input_df): 
 	fig,ax = plt.subplots(4,6,figsize=(10,10),sharex=True,sharey=True)
 	ax = ax.flatten()

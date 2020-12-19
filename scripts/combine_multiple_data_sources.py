@@ -90,42 +90,42 @@ def select_low_elevation_snotel(input_csv):
 	return df
 	#low, high = df.B.quantile([0.25,0.75])
 	#df.query('{low}<B<{high}'.format(low=low,high=high))
-def check_optical_scale(station_csv,optical_data): 
+def check_optical_scale(station_csv,optical_data,elev_col): 
 	# station_df = pd.read_csv(station_csv)
 	# print(optical_data.head())
 	# print(list(set(optical_data.huc8)))
 	# stations_subset = station_df.loc[station_df['huc_id'].isin(list(set(optical_data.huc8)))]
 	# print(stations_subset)
 	hucs = []
-	mean_elevs = []
+	elevs_stats = []
 	pct_changes = []
 	for huc in list(set(optical_data.huc8)): 
 		df = optical_data[optical_data['huc8']==huc]
 		df['pct_change'] = df['NDSI_Snow_Cover'].pct_change()
-		pct_change_std = df['pct_change'].std()
-		mean_elev = df['elev_mean'].iloc[0] #get the first value for mean elev, these should all be the same for that hucID
+		pct_change_std = df['pct_change'].mean()
+		elev_stat = df[elev_col].iloc[0] #get the first value for mean elev, these should all be the same for that hucID
 		hucs.append(huc)
-		mean_elevs.append(mean_elev)
+		elevs_stats.append(elev_stat)
 		pct_changes.append(pct_change_std)
 
-	output_df = pd.DataFrame({'huc_id':hucs,'mean_elev':mean_elevs,'pct_change_std':pct_changes})
+	output_df = pd.DataFrame({'huc_id':hucs,elev_col:elevs_stats,'pct_change_std':pct_changes})
 	#print(output_df)
 	return output_df
-def plot_optical_scale(input_df): 
+def plot_optical_scale(input_df,elev_col): 
 	print(input_df)
 	fig,ax=plt.subplots()
-	ax.scatter(input_df['mean_elev'],input_df['pct_change_std']) #plot a simple regression 
-	linreg = sp.stats.linregress(input_df.mean_elev,input_df.pct_change_std)
+	ax.scatter(input_df[elev_col],input_df['pct_change_std']) #plot a simple regression 
+	linreg = sp.stats.linregress(input_df[elev_col],input_df.pct_change_std)
 	#The regression line can then be added to your plot: -
 
 
 	#df['anomaly'].plot.line(ax=ax,legend=False,color='darkblue',lw=2)
 	#ax.scatter(df[year],df['filter'])
-	ax.plot(np.unique(input_df.mean_elev), np.poly1d(np.polyfit(input_df.mean_elev, input_df.pct_change_std, 1))(np.unique(input_df.mean_elev)))
+	ax.plot(np.unique(input_df[elev_col]), np.poly1d(np.polyfit(input_df[elev_col], input_df.pct_change_std, 1))(np.unique(input_df[elev_col])))
 	ax.set_xlabel('Mean basin elevation (m)')
 	ax.set_ylabel('Standard deviation of \n cumulative percent change')
 	ax.set_title('Mean elevation vs MODIS \n snow persistence cumalitve percent change')
-	X2 = sm.add_constant(input_df.mean_elev)
+	X2 = sm.add_constant(input_df[elev_col])
 	est = sm.OLS(input_df.pct_change_std, X2)
 	print(est.fit().f_pvalue)
 	#Similarly the r-squared value: -
@@ -212,8 +212,8 @@ def main():
 	optical_data = AcquireData(water_year_start,water_year_end,huc_level).get_optical_data(optical_csv_dir)
 	snotel_data = AcquireData(None,None,None).get_snotel_data(pickles+f'2018_counts_of_stations_by_week_and_by_huc') #hardcoded, should be changed when running another year#pickles+'drought_by_basin_dict')
 	low_elev_snotel = select_low_elevation_snotel(stations)
-	cleaned_optical=check_optical_scale(stations,optical_data)
-	plot_optical_scale(cleaned_optical)
+	cleaned_optical=check_optical_scale(stations,optical_data,'elev_max')
+	plot_optical_scale(cleaned_optical,'elev_max')
 	#print(snotel_data)
 	#cleaned_snotel_data = clean_weekly_counts_snotel_data(snotel_data,'2017-10-01','2018-04-30')
 	#print(cleaned_snotel_data)

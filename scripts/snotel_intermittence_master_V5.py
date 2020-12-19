@@ -313,45 +313,49 @@ def plot_anoms(input_dict,anom_start_date,anom_end_date,state,year_of_interest,t
 
 	count1 = 0
 	# if count1 <= len(western): 
-	fig,ax=plt.subplots(len(eastern),3,sharex=True,sharey=True,figsize=(15,10))
+	fig,ax=plt.subplots(len(western),3,sharex=True,sharey=True,figsize=(15,10))
 
 	for k1,v1 in input_dict.items(): #each of these are now formatted as the huc id is k and then each v1 is a dict of warm,dry,warm dry with each of those a dictionary of stations/years or weeks
-		#if k1 in eastern: 
+		if str(k1) in western: 
 			#print('k1 is: ',k1)
 			#print('v1 is: ', v1)
-		dry_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in v1['dry'].items()])) #changed from input_dict 
-		warm_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in v1['warm'].items()]))
-		warm_dry_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in v1['warm_dry'].items()]))
-		#pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in d.items() ]))
-		dry_stats=pd.Series(dry_df.values.ravel()).dropna().value_counts()
-		warm_stats=pd.Series(warm_df.values.ravel()).dropna().value_counts()
-		warm_dry_stats=pd.Series(warm_dry_df.values.ravel()).dropna().value_counts()
-		
-		dry_stats = pd.DataFrame({'time':dry_stats.index,'counts':dry_stats.values})
-		warm_stats = pd.DataFrame({'time':warm_stats.index,'counts':warm_stats.values})
-		warm_dry_stats = pd.DataFrame({'time':warm_dry_stats.index,'counts':warm_dry_stats.values})
-		#pd.DataFrame({'email':sf.index, 'list':sf.values})
+			dry_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in v1['dry'].items()])) #changed from input_dict 
+			warm_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in v1['warm'].items()]))
+			warm_dry_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in v1['warm_dry'].items()]))
+			#pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in d.items() ]))
+			dry_stats=pd.Series(dry_df.values.ravel()).dropna().value_counts()
+			warm_stats=pd.Series(warm_df.values.ravel()).dropna().value_counts()
+			warm_dry_stats=pd.Series(warm_dry_df.values.ravel()).dropna().value_counts()
+			
+			dry_stats = pd.DataFrame({'time':dry_stats.index,'counts':dry_stats.values})
+			warm_stats = pd.DataFrame({'time':warm_stats.index,'counts':warm_stats.values})
+			warm_dry_stats = pd.DataFrame({'time':warm_dry_stats.index,'counts':warm_dry_stats.values})
+			#pd.DataFrame({'email':sf.index, 'list':sf.values})
 
-
-		plot_dict = {'dry':dry_stats,'warm':warm_stats,'warm_dry':warm_dry_stats}
-		#print(dry_df)
-		print(plot_dict)
-		#print(dry_stats)
-		#print(dry_df)
-		#for i in range(4): #iterate the rows
-		count = 0
-		for k,v in plot_dict.items(): 
-			ax[count1][count].bar(v.time, v.counts, color='g') #plot by row and then for cols plot three across
-			if time_step.lower() == 'weekly': 
-				ax[count1][count].set_title(f'HUC {k1} {year_of_interest} weekly \n{k} snow drought')	
-			else:
-				ax[count1][count].set_title(f'HUC {k1} {k} snow drought')
-			count +=1
-		count1+=1
-			# plt.xticks(rotation=45)
-		# else: 
-		# 	continue
-
+			plot_dict = {'dry':dry_stats,'warm':warm_stats,'warm_dry':warm_dry_stats}
+			print(plot_dict)
+			print('k1 is',k1)
+			print('count1 is: ',count1)
+			#print(dry_df)
+			#print(plot_dict)
+			#print(dry_stats)
+			#print(dry_df)
+			#for i in range(4): #iterate the rows
+			count = 0
+			try:
+				for k,v in plot_dict.items(): 
+					ax[count1][count].bar(v.time, v.counts, color='g') #plot by row and then for cols plot three across
+					if time_step.lower() == 'weekly': 
+						ax[count1][count].set_title(f'HUC {k1} {year_of_interest} weekly \n{k} snow drought')	
+					else:
+						ax[count1][count].set_title(f'HUC {k1} {k} snow drought')
+					count +=1
+				count1+=1
+					# plt.xticks(rotation=45)
+			# else: 
+			# 	continue
+			except Exception as e: 
+				pass
 	plt.tight_layout()
 	plt.show()
 	plt.close('all')
@@ -464,7 +468,7 @@ def main():
 			pickle_results=input_data.snotel_compiler() #this generates a list of dataframes of all of the snotel stations that have data for a given state
 	
 	##########################################################################
-	filename = output_filepath+'master_dict_all_states_all_years_all_params_dict_correctly_combined'
+	filename = output_filepath+f'master_dict_all_states_all_years_all_params_dict_correctly_combined_{season}'
 	if not os.path.exists(filename): 
 		states_list = []
 		for i in ['OR','WA','ID']: 
@@ -488,7 +492,7 @@ def main():
 
 	# ##########################################################################
 	#this is working and generates the snow drought years
-	year_of_interest = 2015
+	year_of_interest = 2008
 
 	if os.path.exists(filename): 
 		master_param_dict=combine.pickle_opener(filename)
@@ -502,10 +506,10 @@ def main():
 	#uncomment to make plot of anomaly years 
 	if time_step.lower() == 'annual': 
 		plot_data = 0
-		snow_drought_filename = output_filepath+f'_{time_step}'+'dictionary'
+		snow_drought_filename = output_filepath+f'_{time_step}'+f'dictionary_{season}'
 	elif time_step.lower() == 'weekly': 
 		plot_data = 1
-		snow_drought_filename = output_filepath+f'_{time_step}_{year_of_interest}'+'dictionary'
+		snow_drought_filename = output_filepath+f'_{time_step}_{year_of_interest}'+f'dictionary_{season}'
 	if not os.path.exists(snow_drought_filename): 
 		snow_droughts=combine_dfs(sites_ids,master_param_dict,anom_start_date,anom_end_date,year_of_interest,time_step)
 		pickle_data=pickle.dump(snow_droughts, open(snow_drought_filename,'ab'))
@@ -513,15 +517,16 @@ def main():
 	else: 
 		snow_droughts=combine.pickle_opener(snow_drought_filename)
 		print('working from pickles')
-		print(snow_droughts)
+		#print(snow_droughts)
 	#get the plot of counts of snow drought by year
-	#plot_anoms(snow_droughts[0],anom_start_date,anom_end_date,None,year_of_interest,time_step,huc_list)
 	#print(snow_droughts[plot_data])
 	#plot snow drought ratios
-	ratios = snow_drought_ratios(snow_droughts[plot_data],snow_droughts[2])
-	visualize = plot_snow_drought_ratios(ratios,pnw_shapefile,huc_shapefile,us_boundary,stations_df,year_of_interest)
+	#ratios = snow_drought_ratios(snow_droughts[plot_data],snow_droughts[2])
+	#visualize = plot_snow_drought_ratios(ratios,pnw_shapefile,huc_shapefile,us_boundary,stations_df,year_of_interest)
 	# basin_drought_filename = pickles+'drought_by_basin_dict'
-	#drought_by_basin = define_hucs(snow_droughts[plot_data],huc_dict) #changed from ratios 11/30/2020
+	drought_by_basin = define_hucs(snow_droughts[plot_data],huc_dict) #changed from ratios 11/30/2020
+	plot_anoms(drought_by_basin,anom_start_date,anom_end_date,None,year_of_interest,time_step,huc_list)
+
 	#print(drought_by_basin)
 	# if not os.path.exists(basin_drought_filename): 
 	# 	pickle.dump(drought_by_basin, open(basin_drought_filename, 'ab'))
