@@ -66,7 +66,7 @@ def get_years(input_df):
 	years_max = max(years)
 	return years_min,years_max
 
-def combine_dfs(sites_ids,param_dict,start_date,end_date,year_of_interest,time_step): 
+def combine_dfs(sites_ids,param_dict,start_date,end_date,year_of_interest,time_step,agg_step): 
 	#station_id,param_dict,start_date,end_date = args
 	#here the param_dict is like {param:{station_id:df for param}}
 	dry = dict(zip(sites_ids, ([] for _ in sites_ids)))
@@ -90,13 +90,13 @@ def combine_dfs(sites_ids,param_dict,start_date,end_date,year_of_interest,time_s
 		for year in range(start_year,end_year+1):#range(int(start_date[0:4])+1,int(end_date[0:4])+1): the first year will actually be the start of the water year, not the water year itself 
 			try: 
 				if (time_step.lower() == 'weekly') and (year == year_of_interest): #run for just a year of weeks
-					num_weeks = wteq_df.shape[0]/7
-					for i in range(0,wteq_df.shape[0]+7,7): #get the number of rows in the dataframe which is the season length. Weekly is set to step by seven right now, not sure if that's the best way of doing it 
+					num_weeks = wteq_df.shape[0]/agg_step
+					for i in range(0,wteq_df.shape[0]+agg_step,agg_step): #get the number of rows in the dataframe which is the season length. Weekly is set to step by seven right now, not sure if that's the best way of doing it 
 						print('i is ', i)
 						try: 
-							wteq_df_sub = wteq_df.iloc[i:i+7]
-							prcp_df_sub = prcp_df.iloc[i:i+7]
-							tavg_df_sub = tavg_df.iloc[i:i+7]
+							wteq_df_sub = wteq_df.iloc[i:i+agg_step]
+							prcp_df_sub = prcp_df.iloc[i:i+agg_step]
+							tavg_df_sub = tavg_df.iloc[i:i+agg_step]
 						except Exception as e: 
 							print('final week')
 							wteq_df_sub = wteq_df.iloc[i:]
@@ -113,13 +113,13 @@ def combine_dfs(sites_ids,param_dict,start_date,end_date,year_of_interest,time_s
 						#print(tavg_df_sub)
 						if (wteq_df_sub[f'WTEQ_{year}'].max() < wteq_df_sub[f'week_wteq'].iloc[0]) and (prcp_df_sub[f'PREC_{year}'].max()<prcp_df_sub['week_prcp'].iloc[0]) and ((tavg_df_sub[f'TAVG_{year}'][tavg_df_sub[f'TAVG_{year}']>0].shape[0])<tavg_df_sub[f'week_tavg'].iloc[0]): #(tavg_df[f'TAVG_{year}'].mean()<tavg_df[f'stat_TAVG'][0]):
 							#dry_year.update({station_id:i+7})
-							dry_sites[station_id].append(i+7)#dry_sites.update({station_id:dry_sites[station_id].append(i+7)})
+							dry_sites[station_id].append(i+agg_step)#dry_sites.update({station_id:dry_sites[station_id].append(i+7)})
 						elif (wteq_df_sub[f'WTEQ_{year}'].max() < wteq_df_sub[f'week_wteq'].iloc[0]) and (prcp_df_sub[f'PREC_{year}'].max()>=prcp_df_sub['week_prcp'].iloc[0]): 
 							#warm_year.update({station_id:i+7})
-							warm_sites[station_id].append(i+7)#warm_sites.update({station_id:warm_sites[station_id].append(i+7)})
+							warm_sites[station_id].append(i+agg_step)#warm_sites.update({station_id:warm_sites[station_id].append(i+7)})
 						elif (wteq_df_sub[f'WTEQ_{year}'].max() < wteq_df_sub[f'week_wteq'].iloc[0]) and (prcp_df_sub[f'PREC_{year}'].max()<prcp_df_sub['week_prcp'].iloc[0]) and ((tavg_df_sub[f'TAVG_{year}'][tavg_df_sub[f'TAVG_{year}']>0].shape[0])>tavg_df_sub[f'week_tavg'].iloc[0]): 
 							#warm_dry_year.update({station_id:i+7})
-							warm_dry_sites[station_id].append(i+7)#warm_dry_sites.update({station_id:warm_dry_sites[station_id].append(i+7)})
+							warm_dry_sites[station_id].append(i+agg_step)#warm_dry_sites.update({station_id:warm_dry_sites[station_id].append(i+7)})
 						else:
 							print('passed')
 
@@ -159,8 +159,12 @@ def combine_dfs(sites_ids,param_dict,start_date,end_date,year_of_interest,time_s
 
 def define_hucs(input_dict,hucs): 
 	"""Subdivide results of combine_dfs above by huc level."""
+	#print(hucs)
+	hucs = {str(k):str(v) for k,v in hucs.items()}
+	#print(hucs)
+
 	huc_list = list(set(i for i in hucs.values())) #get a list of the unique hucs 
-	
+	#print('huc_list is: ', huc_list)
 	#need to make a dictionary of dictionaries of dictionaries ie {huc:{dry:{station_id:[list of ids]}}}
 	output_dict = dict(zip(huc_list, ({} for _ in huc_list)))
 	# for k,v in output_dict.items(): 
@@ -177,15 +181,19 @@ def define_hucs(input_dict,hucs):
 
 		for k,v in input_dict.items(): #will get dry, warm,warm_dry
 			for k1,v1 in v.items(): #will go through stations that were classified in that group 
-				if hucs[k1] == i: 
-					if k.lower()=='dry': 
-						dry.update({k1:v1})
-					elif k.lower()=='warm': 
-						warm.update({k1:v1})
-					elif k.lower()=='warm_dry': 
-						warm_dry.update({k1:v1})
-					else: 
-						pass	
+				try: 
+					if hucs[k1] == i: 
+						if k.lower()=='dry': 
+							dry.update({k1:v1})
+						elif k.lower()=='warm': 
+							warm.update({k1:v1})
+						elif k.lower()=='warm_dry': 
+							warm_dry.update({k1:v1})
+						else: 
+							pass	
+				except Exception as e: 
+					print('the error was ',e)
+					continue 
 
 		output_dict[i].update({'dry':dry,'warm':warm,'warm_dry':warm_dry})
 	#print(output_dict)
@@ -316,7 +324,7 @@ def plot_anoms(input_dict,anom_start_date,anom_end_date,state,year_of_interest,t
 	fig,ax=plt.subplots(len(western),3,sharex=True,sharey=True,figsize=(15,10))
 
 	for k1,v1 in input_dict.items(): #each of these are now formatted as the huc id is k and then each v1 is a dict of warm,dry,warm dry with each of those a dictionary of stations/years or weeks
-		if str(k1) in western: 
+		if str(k1[:3]) in western: 
 			#print('k1 is: ',k1)
 			#print('v1 is: ', v1)
 			dry_df=pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in v1['dry'].items()])) #changed from input_dict 
@@ -447,7 +455,7 @@ def main():
 	#get some of the params needed
 	stations_df = pd.read_csv(stations)
 	#stations_df = stations_df[stations_df['state']==state_abbr] #this might not be the best way to run this, right now it will require changing the state you want 
-	sites = combine.make_site_list(stations_df)
+	sites = combine.make_site_list(stations_df,'huc_08',8)
 	sites_full = sites[0] #this is getting the full df of oregon (right now) snotel sites. Changed 10/28/2020 so its just getting all of the site ids
 	sites_ids = sites[1] #this is getting a list of just the snotel site ids. You can grab a list slice to restrict how big results gets below. 
 	huc_dict = sites[2] #this gets a dict of format {site_id:huc12 id}
@@ -457,7 +465,7 @@ def main():
 	#make a csv for sentinel data
 	#sites_full.to_csv(f"/vol/v1/general_files/user_files/ben/excel_files/{state}_snotel_data.csv")
 	huc_list = list(set(i for i in huc_dict.values())) 
-	print('the len of sites ids is: ',len(sites_ids))
+	#print('the len of sites ids is: ',len(sites_ids))
 	#create the input data
 	if write_out.lower() == 'true': 
 		for param in ['WTEQ','PREC','TAVG','SNWD','PRCP','PRCPSA']: #PRCP
@@ -492,7 +500,7 @@ def main():
 
 	# ##########################################################################
 	#this is working and generates the snow drought years
-	year_of_interest = 2008
+	year_of_interest = 2018
 
 	if os.path.exists(filename): 
 		master_param_dict=combine.pickle_opener(filename)
@@ -509,9 +517,9 @@ def main():
 		snow_drought_filename = output_filepath+f'_{time_step}'+f'dictionary_{season}'
 	elif time_step.lower() == 'weekly': 
 		plot_data = 1
-		snow_drought_filename = output_filepath+f'_{time_step}_{year_of_interest}'+f'dictionary_{season}'
+		snow_drought_filename = output_filepath+f'_{time_step}_{year_of_interest}'+f'dictionary_{season}_{12}_day_aggregation'
 	if not os.path.exists(snow_drought_filename): 
-		snow_droughts=combine_dfs(sites_ids,master_param_dict,anom_start_date,anom_end_date,year_of_interest,time_step)
+		snow_droughts=combine_dfs(sites_ids,master_param_dict,anom_start_date,anom_end_date,year_of_interest,time_step,12)
 		pickle_data=pickle.dump(snow_droughts, open(snow_drought_filename,'ab'))
 		print('pickled')
 	else: 
@@ -523,16 +531,21 @@ def main():
 	#plot snow drought ratios
 	#ratios = snow_drought_ratios(snow_droughts[plot_data],snow_droughts[2])
 	#visualize = plot_snow_drought_ratios(ratios,pnw_shapefile,huc_shapefile,us_boundary,stations_df,year_of_interest)
-	# basin_drought_filename = pickles+'drought_by_basin_dict'
+	#print(snow_droughts)
 	drought_by_basin = define_hucs(snow_droughts[plot_data],huc_dict) #changed from ratios 11/30/2020
+	print(drought_by_basin)
+	basin_drought_filename = pickles+f'snow_droughts_by_basin_and_type_{season}_{year_of_interest}_{time_step}_{12}_day_aggregation'
+
 	plot_anoms(drought_by_basin,anom_start_date,anom_end_date,None,year_of_interest,time_step,huc_list)
 
 	#print(drought_by_basin)
-	# if not os.path.exists(basin_drought_filename): 
-	# 	pickle.dump(drought_by_basin, open(basin_drought_filename, 'ab'))
-	# #print(drought_by_basin)
-	#station_counts_by_week=generate_stats(drought_by_basin,anom_start_date,anom_end_date,state_abbr,year_of_interest,time_step,huc_list) #formerly plot_anoms #changed from snow_droughts[plot_data] as input so we generate based on hucs
-	#counts_filename = output_filepath+f'{year_of_interest}_counts_of_stations_by_week_and_by_huc' #filename for a dictionary of dataframes that have drought types and then are a time (weeks but given in last day of the week from Oct 1) and then the number of stations in that week
+	if not os.path.exists(basin_drought_filename): 
+		pickle.dump(drought_by_basin, open(basin_drought_filename, 'ab'))
+	else: 
+		pass
+	#print(drought_by_basin)
+	# station_counts_by_week=generate_stats(drought_by_basin,anom_start_date,anom_end_date,state_abbr,year_of_interest,time_step,huc_list) #formerly plot_anoms #changed from snow_droughts[plot_data] as input so we generate based on hucs
+	# counts_filename = output_filepath+f'{year_of_interest}_counts_of_stations_by_week_and_by_huc' #filename for a dictionary of dataframes that have drought types and then are a time (weeks but given in last day of the week from Oct 1) and then the number of stations in that week
 	# #collect some data on these results
 	# if not os.path.exists(counts_filename): 
 	# 	print('Pickling station counts...')

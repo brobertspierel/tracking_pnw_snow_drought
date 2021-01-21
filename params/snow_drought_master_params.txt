@@ -1,5 +1,4 @@
 {
-	"state_shapefile":"/vol/v1/general_files/user_files/ben/k_means/temp_files/oregon_state_grid_reprojected_epsg_4326.shp",
 	"huc_shapefile":"/vol/v1/general_files/user_files/ben/shapefiles/hucs/PNW_huc8_export_snotel.shp",
 	"us_boundary":"/vol/v1/general_files/user_files/ben/shapefiles/contiguous_us_dissolve.shp",
 	"pnw_shapefile":"/vol/v1/general_files/user_files/ben/shapefiles/states/PNW_states.shp",
@@ -7,17 +6,21 @@
 	"output_filepath": "/vol/v1/general_files/user_files/ben/sentinel_1_snow/pickles/", 
 	"season": "extended_winter", 
 	"csv_dir": "/vol/v1/general_files/user_files/ben/sentinel_1_snow/full_outputs/", 
-	"stations":"/vol/v1/general_files/user_files/ben/excel_files/hucs_ids_with_snotel_ids.csv",
-	"parameter":"PREC", 
+	"stations":"/vol/v1/general_files/user_files/ben/excel_files/hucs_ids_with_snotel_ids.csv", 
 	"start_date":"2014-10-01",  
 	"end_date":"2019-09-30",
 	"anom_start_date":"1985-10-01",
 	"anom_end_date":"2019-09-30", 
-	"write_out":"false", 
 	"pickles":"/vol/v1/general_files/user_files/ben/pickles/", 
-	"anom_bool":"true", 
-	"state_abbr":"OR", 
 	"time_step":"weekly", 
 	"agg_step":"12", 
-	"year_of_interest":"2018"
+	"year_of_interest":"2018",
+	"sentinel_csv_dir":"/vol/v1/general_files/user_files/ben/excel_files/sentinel_data/DESCENDING_sentinel_1_VH_500m_spatial_res_2017-10-01_2018-07-01_huc_8_timestep_12_days.csv", 
+	"huc_level":"08", 
+	"orbit":"DESCENDING", 
+	"water_year_start":"2019", 
+	"water_year_end":"2020", 
+	"optical_csv_dir":"/vol/v1/general_files/user_files/ben/excel_files/modis_data/MODIS_VIIRS_500m_masked_2017-10-01_2018-07-01_huc8_timestep_12_days.csv", 
+	"hucs_data":"/vol/v1/general_files/user_files/ben/excel_files/huc_data/08_hucs_area_sq_km_1.csv", 
+	"resolution":"500"
 }

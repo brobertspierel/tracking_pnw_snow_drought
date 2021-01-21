@@ -15,6 +15,8 @@ import statsmodels.api as sm
 from scipy import stats
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 import matplotlib.lines as mlines
+from datetime import date, timedelta
+import seaborn as sns 
 
 
 class AcquireData(): 
@@ -23,9 +25,9 @@ class AcquireData():
 		self.water_year_end=water_year_end
 		self.huc_level=huc_level
 
-	def get_sentinel_data(self,csv_dir,orbit):
+	def get_sentinel_data(self,hucs_df,sentinel_df):
 		"""Get cleaned and plottable output from sentinel 1. These data are processed in the sentinel_data_analysis.py script."""
-		sentinel_data=sentinel.get_sentinel_data(csv_dir,self.huc_level,orbit,self.water_year_start,self.water_year_end)
+		sentinel_data=sentinel.combine_hucs_w_sentinel(hucs_df,sentinel_df,self.huc_level)#.get_sentinel_data(csv_dir,self.huc_level,orbit,self.water_year_start,self.water_year_end)
 		return sentinel_data
 
 	def get_optical_data(self,csv_dir): 
@@ -77,6 +79,7 @@ def clean_weekly_counts_snotel_data(input_dict,start_date,end_date):
 	#print(days_to_dates)
 	#print(input_dict)
 	return input_dict 
+	
 def select_low_elevation_snotel(input_csv): 
 	df = pd.read_csv(input_csv)
 	print(df)
@@ -99,38 +102,66 @@ def check_optical_scale(station_csv,optical_data,elev_col):
 	hucs = []
 	elevs_stats = []
 	pct_changes = []
+	ndsi_stats = []
 	for huc in list(set(optical_data.huc8)): 
 		df = optical_data[optical_data['huc8']==huc]
 		df['pct_change'] = df['NDSI_Snow_Cover'].pct_change()
 		pct_change_std = df['pct_change'].mean()
+		elev_mean = df['NDSI_Snow_Cover'].mean()
 		elev_stat = df[elev_col].iloc[0] #get the first value for mean elev, these should all be the same for that hucID
 		hucs.append(huc)
 		elevs_stats.append(elev_stat)
 		pct_changes.append(pct_change_std)
+		ndsi_stats.append(elev_mean)
 
-	output_df = pd.DataFrame({'huc_id':hucs,elev_col:elevs_stats,'pct_change_std':pct_changes})
+	output_df = pd.DataFrame({'huc_id':hucs,elev_col:elevs_stats,'pct_change_std':pct_changes,'ndsi_sp':ndsi_stats})
 	#print(output_df)
 	return output_df
-def plot_optical_scale(input_df,elev_col): 
+def lin_reg_outputs(input_df,x_col,y_col): 
+	linreg = sp.stats.linregress(input_df[x_col],input_df[y_col])
+	X2 = sm.add_constant(input_df[x_col])
+	est = sm.OLS(input_df[y_col], X2)
+	f_value=est.fit().f_pvalue
+	return linreg,f_value
+
+def plot_optical_scale(input_df,x_col,y_col): 
+	input_df['huc_id'] = input_df['huc_id'].astype('str')
 	print(input_df)
+
+	western = ['1708','1801','1710','1711','1709']
+
+	eastern = ['1701','1702','1705','1703','1601','1707','1706','1712','1704']
+
 	fig,ax=plt.subplots()
-	ax.scatter(input_df[elev_col],input_df['pct_change_std']) #plot a simple regression 
-	linreg = sp.stats.linregress(input_df[elev_col],input_df.pct_change_std)
-	#The regression line can then be added to your plot: -
+	#split the plotting df.loc[df['type'].isin(substr)] df.loc[df['type].str.contains('|'.join(substr))]
+	west_df = input_df.loc[input_df['huc_id'].str.contains('|'.join(western))]#.isin(western)]
+	print(west_df)
+	east_df = input_df.loc[input_df['huc_id'].str.contains('|'.join(eastern))]
 
+	ax.scatter(west_df[x_col],west_df[y_col],color='red') #plot a simple regression 
+	ax.scatter(east_df[x_col],east_df[y_col],color='blue') #plot a simple regression 
+	ax.plot(np.unique(west_df[x_col]), np.poly1d(np.polyfit(west_df[x_col], west_df[y_col], 1))(np.unique(west_df[x_col])),color='red',label='west')
+	ax.plot(np.unique(east_df[x_col]), np.poly1d(np.polyfit(east_df[x_col], east_df[y_col], 1))(np.unique(east_df[x_col])),color='blue',label='east')
 
-	#df['anomaly'].plot.line(ax=ax,legend=False,color='darkblue',lw=2)
-	#ax.scatter(df[year],df['filter'])
-	ax.plot(np.unique(input_df[elev_col]), np.poly1d(np.polyfit(input_df[elev_col], input_df.pct_change_std, 1))(np.unique(input_df[elev_col])))
 	ax.set_xlabel('Mean basin elevation (m)')
 	ax.set_ylabel('Standard deviation of \n cumulative percent change')
 	ax.set_title('Mean elevation vs MODIS \n snow persistence cumalitve percent change')
-	X2 = sm.add_constant(input_df[elev_col])
-	est = sm.OLS(input_df.pct_change_std, X2)
-	print(est.fit().f_pvalue)
-	#Similarly the r-squared value: -
-	ax.annotate(f'r2 = {round(linreg.rvalue,2)}',xy=(0.7,0.75),xycoords='figure fraction')
+	#add the western basins
+	# X2 = sm.add_constant(west_df[elev_col])
+	# est = sm.OLS(west_df.pct_change_std, X2)
+	# print(est.fit().f_pvalue)
+	west_linreg = lin_reg_outputs(west_df,x_col,y_col)[0]
+	east_linreg = lin_reg_outputs(east_df,x_col,y_col)[0]
 
+	#Similarly the r-squared value: -
+	ax.annotate(f'west r2 = {round(west_linreg.rvalue,2)}',xy=(0.7,0.75),xycoords='figure fraction')
+
+	#add the eastern basins
+	# east_X2 = sm.add_constant(east_df[elev_col])
+	# east_est = sm.OLS(east_df.pct_change_std, east_X2)
+	# print(east_est.fit().f_pvalue)
+	#Similarly the r-squared value: -
+	ax.annotate(f'east r2 = {round(east_linreg.rvalue,2)}',xy=(0.7,0.7),xycoords='figure fraction')	 
 	#plt.show()
 	# fig,ax = plt.subplots(10,10)
 	# ax=ax.flatten()
@@ -162,30 +193,9 @@ def combine_data_and_plot(sentinel_data,optical_data,snotel_data):
 		warm_dry_df = snotel_data[str(hucs[x])]['warm_dry'].sort_values(by=['date'])
 		weeks_of_interest = list(dry_df['week_of_year']) #get the weeks that we have snotel data for 
 		sentinel_df = sentinel_df[sentinel_df['week_of_year'].isin(weeks_of_interest)] #get the sentinel data that for the weeks that align with the snotel data 
-		#optical_df['sentinel_date'] = sentinel_df['date_time']
-		#print(optical_df)
-		#print(sentinel_df)
-		#print(dry_df)
 		plot_df = pd.merge(sentinel_df,warm_dry_df,on='week_of_year', how='left')
 		print(plot_df)
-		#print(snotel_data[int(hucs[x])])
-		#print(optical_df)
-		#regress optical and sar
 		ax[x].scatter(plot_df['scaled'],plot_df['counts'])#.iloc[:sentinel_df.shape[0]])
-		#ax[x].scatter(sentinel_df['pct_change'],optical_df['pct_change'].iloc[:sentinel_df.shape[0]])
-		#plot everything individually
-		#ax[x].plot(sentinel_df['date_time'],sentinel_df['scaled'],color='darkgreen',label='Sentinel') #plot sentinel data
-		#ax2 = ax[x].twinx()
-		#ax2.plot(dry_df['date'],dry_df['counts'],color='darkred',label='SNOTEL')
-		#ax[x].plot(optical_df['date'],optical_df['pct_change'],color='darkblue',label='Optical') #plot optical data
-		# ax[x].axhline(y=snotel_data[str(hucs[x])]['dry'], color='r', linestyle='-',label='Snotel dry')
-		# ax[x].axhline(y=snotel_data[str(hucs[x])]['warm'], color='black', linestyle='-',label='Snotel warm')
-		# ax[x].axhline(y=snotel_data[str(hucs[x])]['warm_dry'], color='orange', linestyle='-',label='Snotel warm_dry')
-
-
-		# ax[x].plot(snotel_data[str(hucs[x])]['dry'],label='dry')
-		# ax[x].plot(snotel_data[str(hucs[x])]['warm'],label='warm')
-		# ax[x].plot(snotel_data[str(hucs[x])]['warm_dry'],label='warm_dry')
 		ax[x].tick_params(axis='x',labelrotation=90)
 		ax[x].set_title(f'HUC4 ID {hucs[x]}')
 		ax[4].set_xlabel('Date')
@@ -195,6 +205,125 @@ def combine_data_and_plot(sentinel_data,optical_data,snotel_data):
 	plt.tight_layout()
 	plt.show()
 	plt.close('all')
+
+
+
+# def dates_bwn_twodates(start_date, end_date):
+#     for n in range(int ((end_date - start_date).days)):
+#         yield start_date + timedelta(n)
+
+def format_snotel_data(snotel_dict): 
+	sdate = date(2017,10,1)   # start date
+	edate = date(2018,5,10)   # end date
+	dowy = list(range(180)) #this is a rough estimate
+	dowy = [float(i) for i in dowy]
+	dates = pd.date_range(sdate,edate-timedelta(days=1),freq='d')
+	dates = [str(i) for i in dates]
+	date_dict = dict(zip(dowy,dates))
+	#print(date_dict)
+	#changes made 1/4/2020
+	#make dataframes
+
+	for k,v in snotel_dict.items(): #k is the huc id and v is a dict of dry, warm etc 
+		for k1,v1 in v.items(): 
+			#df = pd.DataFrame(v1)
+			#print('k1 is: ', k1)
+			#print('v1 is: ', v1)
+			df = pd.DataFrame({ key:pd.Series(value) for key, value in v1.items() })
+			df = df.T.reset_index()
+			uniques=pd.unique(df.iloc[:,1:].values.ravel('K'))
+			df1 = pd.DataFrame({'huc_id':k,'dowy':list(uniques)})
+			df1 = df1.dropna()
+			v.update({k1:df1})
+			#print(test)
+			#print(df)
+	#print(snotel_dict)
+			#print(df1)
+	for k,v in snotel_dict.items(): 
+		for k1,v1 in v.items():		
+			v1['date'] = v1['dowy'].map(date_dict)
+			#print(v1)
+	#print(snotel_dict)
+	return snotel_dict		
+def plot_sentinel_snotel(snotel_dict,sentinel_df,water_year_end,huc_level,optical_data): 
+	'''
+	Make a comparison of counts of snow droughts by week in the snotel record and wet snow area in the winter season from sentinel 1.
+	'''
+	snotel_dict = format_snotel_data(snotel_dict)
+	fig,ax = plt.subplots(10,3,sharex=True,sharey=True)
+	rows = 0 
+	for k,v in snotel_dict.items(): 
+		cols = 0 
+		for k1,v1 in v.items(): 
+			print('k1 is ',k1)
+			print('v1 is ', v1)
+			print('cols are ', cols)
+			print('k is ',k)
+			try: 
+				sentinel_df[f'huc{huc_level[1]}'] = sentinel_df[f'huc{huc_level[1]}'].astype('str')
+				optical_data[f'huc{huc_level[1]}'] = optical_data[f'huc{huc_level[1]}'].astype('str')
+				sentinel_subset = sentinel_df[sentinel_df[f'huc{huc_level[1]}'].str.contains(k)]
+				optical_subset = optical_data[optical_data[f'huc{huc_level[1]}'].str.contains(k)]
+				v1['date'] = pd.to_datetime(v1['date'])
+				sns.lineplot(sentinel_subset['date'],sentinel_subset['snow_ratio'],ax=ax[rows][cols],color='darkgreen')
+				sns.lineplot(optical_subset['date'],optical_subset['NDSI_Snow_Cover'],ax=ax[rows][cols])
+				ax1 = ax[rows][cols].twinx()
+				v1 = v1.sort_values(by='date')
+				sns.lineplot(v1['date'],v1['counts'],ax=ax1,color='darkred')
+				cols +=1
+			except IndexError: 
+				print('end of the line')
+				continue 
+		rows += 1 
+	plt.tight_layout()
+	plt.show()
+	plt.close('all')
+
+	
+def plot_sar_optical(optical_data,sentinel_data): 
+	try: 
+		optical_data.drop(columns=['.geo'], inplace=True)
+	except KeyError: 
+		print('Optical df does not have the geo column')
+	try: 
+		sentinel_data.drop(columns=['.geo'], inplace=True)
+	except KeyError: 
+		print('sentinel df does not have the geo column')
+	optical_data.rename(columns={'huc10':'huc8'},inplace=True)
+	#print(optical_data.head())
+	#print(sentinel_data.head())
+	#print(optical_data.shape)
+	#print(sentinel_data.shape)
+	#print(optical_data.huc8.unique().shape)
+	#print(sentinel_data.huc8.unique().shape)
+	merged_df = optical_data.merge(sentinel_data, how = 'inner', on = ['huc8','date']) #hardcoded
+	# print(merged_df.head())
+
+	# fig,ax = plt.subplots(10,10,sharex=True,sharey=True)
+	# ax=ax.flatten()
+	# count = 0 
+	# for i in merged_df['huc8'].unique(): 
+	# 	print('id is: ', i)
+		
+	# 	try: 
+	# 		plot_df = merged_df.loc[merged_df['huc8']==i]
+	# 		plot_df = plot_df.dropna()
+	# 		linreg_stats = lin_reg_outputs(plot_df,'NDSI_Snow_Cover','snow_ratio')[0]
+
+	# 		#Similarly the r-squared value: -
+	# 		ax[count].annotate(f'r2 = {round(linreg_stats.rvalue,2)}',xy=(0.7,0.75),xycoords='axes fraction')
+
+	# 		#print(plot_df)
+	# 		ax[count].scatter(plot_df['NDSI_Snow_Cover'], plot_df['snow_ratio'])
+	# 		ax[count].set_title(str(i))
+	# 	except Exception as e:
+	# 		print(f'error is: {e}') 
+	# 		print('end of the line')
+	# 		continue
+	# 	count +=1
+	#plt.show()
+	#plt.close('all')
+	return merged_df
 def main():  
 	params = sys.argv[1]
 	with open(str(params)) as f:
@@ -207,13 +336,42 @@ def main():
 		optical_csv_dir=variables['optical_csv_dir']
 		pickles=variables['pickles']
 		stations=variables['stations']
+		hucs_data = variables['hucs_data']
 
-	sentinel_data = AcquireData(water_year_start,water_year_end,huc_level).get_sentinel_data(sentinel_csv_dir,orbit)
+	sentinel_data = AcquireData(None,None,huc_level).get_sentinel_data(hucs_data,sentinel_csv_dir)
 	optical_data = AcquireData(water_year_start,water_year_end,huc_level).get_optical_data(optical_csv_dir)
-	snotel_data = AcquireData(None,None,None).get_snotel_data(pickles+f'2018_counts_of_stations_by_week_and_by_huc') #hardcoded, should be changed when running another year#pickles+'drought_by_basin_dict')
-	low_elev_snotel = select_low_elevation_snotel(stations)
-	cleaned_optical=check_optical_scale(stations,optical_data,'elev_max')
-	plot_optical_scale(cleaned_optical,'elev_max')
+	snotel_data = AcquireData(None,None,None).get_snotel_data(pickles+f'snow_droughts_by_basin_and_type_full_winter_2018_weekly_12_day_aggregation')#f'2018_counts_of_stations_by_week_and_by_huc') #currently data that starts on November 1? hardcoded, should be changed when running another year#pickles+'drought_by_basin_dict')
+	#print(optical_data)
+	print(sentinel_data)
+	#plot_sentinel_snotel(snotel_data,sentinel_data,water_year_end,huc_level,optical_data)
+	remote_sensing=plot_sar_optical(optical_data,sentinel_data)
+	remote_sensing = remote_sensing.loc[remote_sensing['NDSI_Snow_Cover']>= 0.2]
+	remote_sensing['ndsi_pct_change'] = remote_sensing['NDSI_Snow_Cover'].pct_change()
+	remote_sensing['sar_pct_change'] = remote_sensing['snow_ratio'].pct_change()
+	formatted_snotel = format_snotel_data(snotel_data)
+	print(formatted_snotel)
+	# for k,v in formatted_snotel.items(): # {huc_id:'warm_dry'}
+	# 	print('The basin id is: ', k)
+	# 	for k1,v1 in v.items(): #{warm:df}
+	# 		#clean a few columns 
+	# 		print('The drought type is: ', k1)
+	# 		v1.rename(columns={'huc_id':'huc8'},inplace = True)
+	# 		v1['date'] = pd.to_datetime(v1['date'])
+	# 		v1['huc8'] = v1['huc8'].astype('int64')
+			
+	# 		df = v1.merge(remote_sensing,how='inner', on = ['date','huc8']) 
+			
+	# 		print(df[['NDSI_Snow_Cover','date']])
+	# 		print(df.ndsi_pct_change)
+	# 		print(df.sar_pct_change)
+	# 		v.update({k1:df})
+	#print(formatted_snotel)
+	#merged_methods = formatted_snotel.merge(remote_sensing),how='inner', on = ['date']
+	#print(snotel_data)
+	#format_snotel_data(snotel_data,water_year_end)
+	#low_elev_snotel = select_low_elevation_snotel(stations)
+	#cleaned_optical=check_optical_scale(stations,optical_data,'elev_max')
+	#plot_optical_scale(cleaned_optical,'elev_max','ndsi_sp')
 	#print(snotel_data)
 	#cleaned_snotel_data = clean_weekly_counts_snotel_data(snotel_data,'2017-10-01','2018-04-30')
 	#print(cleaned_snotel_data)
