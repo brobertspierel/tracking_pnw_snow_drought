@@ -1,1 +1,17 @@
 /vol/v1/general_files/user_files/ben/python_files/sar_optical_low_snow_pnw/scripts/depreceated_funcs.txt
+/vol/v1/general_files/user_files/ben/python_files/sar_optical_low_snow_pnw/params/combine_multiple_data_sources.txt
+/vol/v1/general_files/user_files/ben/python_files/sar_optical_low_snow_pnw/params/sentinel_data_analysis.txt
+/vol/v1/general_files/user_files/ben/python_files/sar_optical_low_snow_pnw/params/snotel_intermittence_master.txt
+/vol/v1/general_files/user_files/ben/python_files/sar_optical_low_snow_pnw/scripts/combine_multiple_data_sources.py
+/vol/v1/general_files/user_files/ben/python_files/sar_optical_low_snow_pnw/scripts/csv_cleaning.py
+/vol/v1/general_files/user_files/ben/python_files/sar_optical_low_snow_pnw/scripts/k_means_clustering.py
+/vol/v1/general_files/user_files/ben/python_files/sar_optical_low_snow_pnw/scripts/remote_sensing_functions.py
+/vol/v1/general_files/user_files/ben/python_files/sar_optical_low_snow_pnw/scripts/sentinel_data_analysis.py
+/vol/v1/general_files/user_files/ben/python_files/sar_optical_low_snow_pnw/scripts/snotel_data_analysis.py
+/vol/v1/general_files/user_files/ben/python_files/sar_optical_low_snow_pnw/scripts/snotel_functions.py
+/vol/v1/general_files/user_files/ben/python_files/sar_optical_low_snow_pnw/scripts/snotel_intermittence_functions.py
+/vol/v1/general_files/user_files/ben/python_files/sar_optical_low_snow_pnw/scripts/snotel_intermittence_master_V5.py
+/vol/v1/general_files/user_files/ben/python_files/sar_optical_low_snow_pnw/scripts/snotel_intermittence_visualization_figures.py
+/vol/v1/general_files/user_files/ben/python_files/sar_optical_low_snow_pnw/scripts/sp_data_analysis.py
+/vol/v1/general_files/user_files/ben/python_files/sar_optical_low_snow_pnw/scripts/sp_decline.py
+/vol/v1/general_files/user_files/ben/python_files/sar_optical_low_snow_pnw/scripts/test_funcs.py

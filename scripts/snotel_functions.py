@@ -43,7 +43,7 @@ import matplotlib.lines as mlines
 ################################################################################################
 ################################################################################################
 ################################################################################################
-def make_site_list(input_df,huc_col,huc_level): 
+def make_site_list(input_df,huc_col,huc_level,state): 
         """Get a list of all the snotel sites from input csv."""
         sites=input_df#pd.read_csv(input_csv) #read in the list of snotel sites by state
         try: 
@@ -51,15 +51,15 @@ def make_site_list(input_df,huc_col,huc_level):
             huc_dict=dict(zip(sites.id, sites[huc_col]))#.str.slice(0,huc_level,1))) #currently set to get huc04, change the end point to get a different huc level 
         except KeyError: 
             print('There was an issue with the format of the huc col, please double check inputs')
-     
-        site_ls = sites['id'].astype('str').tolist()
+        state_sites = sites[sites['state']==state]
+        site_ls = state_sites['id'].astype('str').tolist()
         return (sites,site_ls,huc_dict)
 
 class CollectData(): 
     #these functions are used to get snotel data, clean and organize. 
 
-    def __init__(self,station_csv,parameter,start_date,end_date,state,site_list,write_out,output_filepath): 
-        self.station_csv = station_csv
+    def __init__(self,parameter,start_date,end_date,state,site_list,write_out,output_filepath): 
+        #self.station_csv = station_csv
         #self.station = station
         self.parameter = parameter
         self.start_date = start_date

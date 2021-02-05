@@ -58,44 +58,35 @@ def main():
 		variables = json.load(f)
 		
 		#construct variables from param file
-		state_shapefile = variables["state_shapefile"]
-		pnw_shapefile = variables["pnw_shapefile"]
-		huc_shapefile = variables['huc_shapefile']
-		us_boundary = variables['us_boundary']
-		epsg = variables["epsg"]
-		output_filepath=variables["output_filepath"]
 		season = variables["season"]
-		csv_dir = variables["csv_dir"]
 		stations = variables["stations"]
-		parameter = variables["parameter"]
-		start_date = variables["start_date"]
-		end_date = variables["end_date"]
 		anom_start_date = variables["anom_start_date"]
 		anom_end_date = variables["anom_end_date"]
 		write_out = variables["write_out"]
 		pickles = variables["pickles"]
 		anom_bool = variables["anom_bool"]
-		state_abbr = variables['state_abbr']
 		time_step = variables['time_step']
+		state = variables['state'] 
+
 	#get some of the params needed
 	stations_df = pd.read_csv(stations)
-	sites = combine.make_site_list(stations_df,'huc_08',8)
+	sites = combine.make_site_list(stations_df,'huc_08',8,state)
 	sites_full = sites[0] #this is getting the full df of oregon (right now) snotel sites. Changed 10/28/2020 so its just getting all of the site ids
-	sites_ids = sites[1] #this is getting a list of just the snotel site ids. You can grab a list slice to restrict how big results gets below. 
+	#sites_ids = sites[1] #this is getting a list of just the snotel site ids. You can grab a list slice to restrict how big results gets below. 
 	huc_dict = sites[2] #this gets a dict of format {site_id:huc12 id}
-	new_parameter = parameter+'_scaled'
 	huc_list = list(set(i for i in huc_dict.values())) 
 	#create the input data
 	if write_out.lower() == 'true': 
 		for param in ['WTEQ','PREC','TAVG','SNWD','PRCP','PRCPSA']: #PRCP
-			
-			print('current param is: ', param)
-			input_data = combine.CollectData(stations,param,anom_start_date,anom_end_date,state,sites_ids, write_out, output_filepath)
-			#get new data
-			pickle_results=input_data.snotel_compiler() #this generates a list of dataframes of all of the snotel stations that have data for a given state
+			for st in ['OR','WA','ID']: 
+				sites_ids = combine.make_site_list(stations_df,'huc_08',8,st)[1] #get a list of stations for the given state 	
+				print('current param is: ', param)
+				input_data = combine.CollectData(param,anom_start_date,anom_end_date,st,sites_ids,write_out, pickles) #changed state variable to None 2/2/2021
+				#get new data
+				pickle_results=input_data.snotel_compiler() #this generates a list of dataframes of all of the snotel stations that have data for a given state
 	
 	##########################################################################
-	filename = pickles+f'master_dict_all_states_all_years_all_params_dict_correctly_combined_{season}_updated'
+	filename = pickles+f'master_dict_all_states_all_years_all_params_dict_{anom_start_date}_{anom_end_date}_{season}_updated'
 	if not os.path.exists(filename): 
 		states_list = []
 		for i in ['OR','WA','ID']: 

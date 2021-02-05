@@ -173,16 +173,16 @@ def calculate_short_term_snow_drought(input_dict,year_of_interest,agg_step,hucs,
 				try: 
 					if (wteq_df_sub[f'WTEQ_{year_of_interest}'].max() < wteq_df_sub[f'week_wteq'].iloc[0]) and (precip_df_sub[f'PREC_{year_of_interest}'].max()<precip_df_sub['week_prcp'].iloc[0]) and ((temp_df_sub[f'TAVG_{year_of_interest}'][temp_df_sub[f'TAVG_{year_of_interest}']>0].count())<temp_df_sub[f'week_tavg'].iloc[0]): 
 						#print(f"{wteq_df_sub[f'WTEQ_{year_of_interest}'].max()} < {wteq_df_sub[f'week_wteq'].iloc[0]}")
-						output_df=output_df.append({'station_id':k,'huc_id':hucs[k],'dry':current_date_start,'warm':np.nan,'warm_dry':np.nan},ignore_index=True)
+						output_df=output_df.append({'station_id':k,'huc_id':hucs[k],'dry':current_date_start,'warm':np.nan,'warm_dry':np.nan,'date':np.nan},ignore_index=True)
 
 					elif (wteq_df_sub[f'WTEQ_{year_of_interest}'].max() < wteq_df_sub[f'week_wteq'].iloc[0]) and (precip_df_sub[f'PREC_{year_of_interest}'].max()>=precip_df_sub['week_prcp'].iloc[0]): 
-						output_df=output_df.append({'station_id':k,'huc_id':hucs[k],'dry':np.nan,'warm':current_date_start,'warm_dry':np.nan},ignore_index=True)
+						output_df=output_df.append({'station_id':k,'huc_id':hucs[k],'dry':np.nan,'warm':current_date_start,'warm_dry':np.nan,'date':np.nan},ignore_index=True)
 
 					elif (wteq_df_sub[f'WTEQ_{year_of_interest}'].max() < wteq_df_sub[f'week_wteq'].iloc[0]) and (precip_df_sub[f'PREC_{year_of_interest}'].max()<precip_df_sub['week_prcp'].iloc[0]) and ((temp_df_sub[f'TAVG_{year_of_interest}'][temp_df_sub[f'TAVG_{year_of_interest}']>0].count())>temp_df_sub[f'week_tavg'].iloc[0]): 
-						output_df=output_df.append({'station_id':k,'huc_id':hucs[k],'dry':np.nan,'warm':np.nan,'warm_dry':current_date_start},ignore_index=True)
+						output_df=output_df.append({'station_id':k,'huc_id':hucs[k],'dry':np.nan,'warm':np.nan,'warm_dry':current_date_start,'date':np.nan},ignore_index=True)
 					
 					else:
-						print('passed')
+						output_df=output_df.append({'station_id':k,'huc_id':hucs[k],'dry':np.nan,'warm':np.nan,'warm_dry':np.nan,'date':current_date_start},ignore_index=True)
 				except Exception as e: 
 					print(f'Error was {e}')
 					continue
@@ -219,7 +219,7 @@ def main():
 		year_of_interest = int(variables["year_of_interest"])
 	#get some of the params needed
 	stations_df = pd.read_csv(stations)
-	sites = combine.make_site_list(stations_df,'huc_08',8)
+	sites = combine.make_site_list(stations_df,'huc_08',8,None)
 	sites_full = sites[0] #this is getting the full df of oregon (right now) snotel sites. Changed 10/28/2020 so its just getting all of the site ids
 	sites_ids = sites[1] #this is getting a list of just the snotel site ids. You can grab a list slice to restrict how big results gets below. 
 	huc_dict = sites[2] #this gets a dict of format {site_id:huc12 id}
@@ -229,7 +229,7 @@ def main():
 	
 	##########################################################################
 	#read in the SNOTEL station data
-	filename = pickles+f'master_dict_all_states_all_years_all_params_dict_correctly_combined_{season}_updated'
+	filename = pickles+f'master_dict_all_states_all_years_all_params_dict_{anom_start_date}_{anom_end_date}_{season}_updated'
 
 	if os.path.exists(filename): 
 		master_param_dict=combine.pickle_opener(filename)
@@ -242,8 +242,8 @@ def main():
 	# ########################################################################
 	#this is working and generates the snow drought years or weeks
 
-	long_term_snow_drought_filename = pickles+f'long_term_snow_drought_{season}_w_hucs'
-	short_term_snow_drought_filename = pickles+f'short_term_snow_drought_{season}_{agg_step}_day_time_step_w_hucs'
+	long_term_snow_drought_filename = pickles+f'long_term_snow_drought_{anom_start_date}_{anom_end_date}_{season}_w_hucs'
+	short_term_snow_drought_filename = pickles+f'short_term_snow_drought_{year_of_interest}_water_year_{season}_{agg_step}_day_time_step_w_all_dates'
 
 	if not os.path.exists(long_term_snow_drought_filename): 
 		long_term_snow_drought=calculate_long_term_snow_drought(master_param_dict,anom_start_date,anom_end_date,year_of_interest,huc_dict)

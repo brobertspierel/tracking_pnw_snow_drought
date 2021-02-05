@@ -22,9 +22,9 @@ class AcquireData():
 		sentinel_data=rs_funcs.combine_hucs_w_sentinel(self.hucs_data,self.sentinel_data,self.huc_level,self.resolution,col_of_interest) #for sentinel 1 the default col of interest is 'filter'
 		return sentinel_data
 
-	def get_optical_data(self): 
+	def get_optical_data(self,col_of_interest): 
 		"""Get cleaned and plottable output from optical data, either Landsat or MODIS/VIIRS."""
-		optical_data = rs_funcs.read_csv(self.optical_data,'optical')
+		optical_data = rs_funcs.read_optical_and_convert_to_area(self.optical_data,self.resolution,'optical',col_of_interest) 
 		return optical_data
 
 	def get_snotel_data(self): 	

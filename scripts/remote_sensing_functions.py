@@ -3,13 +3,7 @@ import sys
 import glob
 import numpy as np 
 import pandas as pd 
-import matplotlib.pyplot as plt
-import seaborn as sns
 import json
-from snotel_intermittence_functions import PrepPlottingData
-from math import sqrt 
-import math
-import sp_data_analysis as sp_funcs
 import datetime
 
 ##################################################################################################################
@@ -87,7 +81,7 @@ def combine_hucs_w_sentinel(hucs_data,sentinel_data,huc_level,resolution,col_of_
 	#create a dict of hucs ids and areas of basins 
 	hucs_dict = hucs_df.set_index('id').to_dict()['area']
 	#create a new area col
-	sentinel_df['area'] = sentinel_df[f'huc{huc_level[1]}'].map(hucs_dict)
+	sentinel_df['area'] = sentinel_df[f'huc{huc_level}'].map(hucs_dict)
 	#normalize snow covered area by basin area
 	sentinel_df['snow_ratio'] = sentinel_df[col_of_interest]/sentinel_df['area']
 	
@@ -96,6 +90,14 @@ def combine_hucs_w_sentinel(hucs_data,sentinel_data,huc_level,resolution,col_of_
 ##################################################################################################################
 ##################################MODIS/VIIRS specific functions##################################################
 ##################################################################################################################
+def read_optical_and_convert_to_area(optical_data,resolution,data_source,col_of_interest): 
+	"""
+	Read in optical data (generally MODIS/VIIRS) and convert pixel counts to area.
+	"""
+	df = read_csv(optical_data,data_source)
+	df = convert_pixel_count_sq_km(df,col_of_interest,resolution)
+	return df 
+
 
 ##################################################################################################################
 ##################################Landsat specific functions######################################################
