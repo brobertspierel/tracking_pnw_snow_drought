@@ -21,11 +21,9 @@ import matplotlib as mpl
 
 def create_long_term_snow_drought_counts(input_df,col_of_interest,grouping_col): 
 	"""Calculates the long term percent of time a basin should be classified as in snow drought."""
-	print(input_df)
+	
 	nans = input_df.fillna(-9999).groupby([grouping_col])[col_of_interest].count().to_frame().reset_index()
-	print(nans)
 	valid_count = (input_df.groupby([grouping_col])[col_of_interest].count()).to_frame().reset_index()
-	print(valid_count)
 	output_df = pd.merge(nans, valid_count, on=grouping_col)
 
 	output_df['pct_drought'] = (output_df[col_of_interest+'_y']/output_df[col_of_interest+'_x'])*100
@@ -43,7 +41,7 @@ def define_snow_drought_recentness(input_df,col_of_interest,grouping_col,output_
 	output_dict = {}
 	for item in input_df[grouping_col].unique(): 
 		df_subset = input_df[input_df[grouping_col]==item]
-		filter_values = pd.IntervalIndex.from_tuples([(1985, 1989), (1990, 1999), (2000, 2009),(2010,2019)],closed='both')
+		filter_values = pd.IntervalIndex.from_tuples([(1980, 1989), (1990, 1999), (2000, 2009),(2010,2019)],closed='both')
 		out = df_subset[['dry','warm','warm_dry']].apply(pd.cut,bins=filter_values)
 		counts = out.apply(pd.Series.value_counts)
 		if not output_var: #default here is to get the max value which is for recentness plot. If output_var evaluates to True (ie not None) it will not send the max but just the counts 
@@ -76,7 +74,10 @@ def main():
 		stations = variables["stations"]		
 		pickles = variables["pickles"]
 		year_of_interest = int(variables["year_of_interest"])
+		palette = variables["palette"]
 
+		palette = list(palette.values())
+		labels=['Dry', 'Warm', 'Warm/dry', 'No drought']
 		plot_func = 'year_totals' #can be one of count, year_totals, recentness
 		try: 
 			long_term_snow_drought = combine.pickle_opener(pickles+f'long_term_snow_drought_{anom_start_date}_{anom_end_date}_{season}_w_hucs') #	long_term_snow_drought_filename = pickles+f'long_term_snow_drought_{anom_start_date}_{anom_end_date}_{season}_w_hucs'
@@ -95,16 +96,21 @@ def main():
 			warm_counts = long_term_snow_drought['warm'].value_counts()
 			warm_dry_counts = long_term_snow_drought['warm_dry'].value_counts()
 			
-			plt.rcParams.update({'font.size': 15})
+			print(dry_counts)
+			print(warm_counts)
+			print(warm_dry_counts)
+			plt.rcParams.update({'font.size': 18})
 
 
 			df = pd.DataFrame({"dry":dry_counts,"warm":warm_counts,"warm_dry":warm_dry_counts})
 			#fig,ax = plt.subplots()
 			
-			ax = df.plot.bar(color=['#d8b365',"darkgray",'#5ab4ac'], rot=0,label=['Dry','Warm','Warm/dry']) #need to do something with the color scheme here and maybe error bars? This could be better as a box plot? 
+			ax = df.plot.bar(color=palette[:-1], rot=0)#,label=['Dry','Warm','Warm/dry']) #need to do something with the color scheme here and maybe error bars? This could be better as a box plot? 
 			ax.grid()
-			ax.set_xlabel("Water year")
-			ax.set_ylabel("Counts")
+			ax.set_xlabel(" ")
+			ax.set_ylabel("Snow drought quantities")
+			ax.legend(labels=labels)
+
 			plt.xticks(rotation=45)
 			plt.show()
 			plt.close('all')
@@ -139,7 +145,10 @@ def main():
 			hucs_shp['warm_colors'] = hucs_shp.huc8.map(warm)
 			hucs_shp['warm_dry_colors'] = hucs_shp.huc8.map(warm_dry)
 			#print(hucs_shp)
-			# print(hucs_shp)
+			print(hucs_shp['dry_colors'].value_counts())
+			print(hucs_shp['warm_colors'].value_counts())
+			print(hucs_shp['warm_dry_colors'].value_counts())
+
 			# hucs_shp['epoch_color_dry'] = hucs_shp['huc8'].map(recentness.values().at('dry'))
 			
 			# hucs['snow_droughts'] = hucs['huc8'].map(basin_droughts_by_year)
@@ -147,17 +156,17 @@ def main():
 
 			#the column with the id here is called 'huc8'
 			
-			colors = ['#fee5d9','#fcae91','#fb6a4a','#cb181d']
+			#colors = ['#fee5d9','#fcae91','#fb6a4a','#cb181d']
 			bounds = [1980,1990,2000,2010,2020]
-			cmap = ListedColormap(colors)
-			fig, ((ax1,ax2),(ax3,ax4)) = plt.subplots(nrows=2,ncols=2, sharex=True, sharey=True,figsize=(12,7))
+			cmap = ListedColormap(palette)
+			fig, ((ax1,ax2),(ax3,ax4)) = plt.subplots(nrows=2,ncols=2, sharex=True, sharey=True,figsize=(18,14))
 			minx, miny, maxx, maxy = hucs_shp.geometry.total_bounds
 
 			#plot dry snow drought
 			us_bounds.plot(ax=ax1,color='white', edgecolor='black')
 			pnw_states.plot(ax=ax1,color='white',edgecolor='darkgray')
 			#hucs_shp.plot(ax=ax1,color='gray',edgecolor='darkgray')
-			hucs_shp.plot(ax=ax1,column='dry_colors',cmap=cmap,vmin=1980,vmax=2019)#, column='Value1')
+			hucs_shp.plot(ax=ax1,column='dry_colors',cmap=cmap,vmin=1980,vmax=2020)#, column='Value1')
 			ax1.set_title('Dry snow drought')
 			ax1.set_xlim(minx - 1, maxx + 1) # added/substracted value is to give some margin around total bounds
 			ax1.set_ylim(miny - 1, maxy + 1)
@@ -168,7 +177,7 @@ def main():
 			us_bounds.plot(ax=ax2,color='white', edgecolor='black')
 			pnw_states.plot(ax=ax2,color='white',edgecolor='darkgray')
 			hucs_shp.plot(ax=ax2,color='gray',edgecolor='darkgray')
-			hucs_shp.plot(ax=ax2, column='warm_colors',cmap=cmap,vmin=1980,vmax=2019)
+			hucs_shp.plot(ax=ax2, column='warm_colors',cmap=cmap,vmin=1980,vmax=2020)
 			ax2.set_title('Warm snow drought')
 			ax2.set_xlim(minx - 1, maxx + 1) # added/substracted value is to give some margin around total bounds
 			ax2.set_ylim(miny - 1, maxy + 1)
@@ -180,7 +189,7 @@ def main():
 			us_bounds.plot(ax=ax3,color='white', edgecolor='black')
 			pnw_states.plot(ax=ax3,color='white',edgecolor='darkgray')
 			hucs_shp.plot(ax=ax3,color='gray',edgecolor='darkgray')
-			hucs_shp.plot(ax=ax3, column='warm_dry_colors', cmap=cmap,vmin=1980,vmax=2019)#,legend=True,cax=cax)#,vmin=1985,vmax=2019)
+			hucs_shp.plot(ax=ax3, column='warm_dry_colors', cmap=cmap,vmin=1980,vmax=2020)#,legend=True,cax=cax)#,vmin=1985,vmax=2019)
 			ax3.set_title('Warm/dry snow drought')
 			ax3.set_xlim(minx - 1, maxx + 1) # added/substracted value is to give some margin around total bounds
 			ax3.set_ylim(miny - 1, maxy + 1)

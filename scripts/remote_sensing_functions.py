@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd 
 import json
 import datetime
+import scipy as sp
+import statsmodels.api as sm
 
 ##################################################################################################################
 ##################################General Functions###############################################################
@@ -58,6 +60,15 @@ def merge_remote_sensing_data(optical_data,sentinel_data):
 		sentinel_data
 	
 	return merged_df
+
+def lin_reg_outputs(input_df,x_col,y_col): 
+	"""Produce a linear regression for a time series."""
+
+	linreg = sp.stats.linregress(input_df[x_col],input_df[y_col])
+	X2 = sm.add_constant(input_df[x_col])
+	est = sm.OLS(input_df[y_col], X2)
+	f_value=est.fit().f_pvalue
+	return linreg,f_value
 ##################################################################################################################
 ##################################Sentinel specific functions#####################################################
 ##################################################################################################################

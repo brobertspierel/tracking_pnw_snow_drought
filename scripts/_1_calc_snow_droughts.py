@@ -243,16 +243,19 @@ def main():
 	#this is working and generates the snow drought years or weeks
 
 	long_term_snow_drought_filename = pickles+f'long_term_snow_drought_{anom_start_date}_{anom_end_date}_{season}_w_hucs'
-	short_term_snow_drought_filename = pickles+f'short_term_snow_drought_{year_of_interest}_water_year_{season}_{agg_step}_day_time_step_w_all_dates'
 
 	if not os.path.exists(long_term_snow_drought_filename): 
 		long_term_snow_drought=calculate_long_term_snow_drought(master_param_dict,anom_start_date,anom_end_date,year_of_interest,huc_dict)
 		pickle.dump(long_term_snow_drought, open(long_term_snow_drought_filename,'ab'))
 	else: 
 		print('Long term snow drought exists, passing')
+	#years = [i for i in list(range(2004,2018))]
+	#for year in years: 
+		#print('year is: ', year)
+	short_term_snow_drought_filename = pickles+f'short_term_snow_drought_{year_of_interest}_water_year_{season}_{agg_step}_day_time_step_w_all_dates' #moved inside for loop 02/05/2021
 
 	if not os.path.exists(short_term_snow_drought_filename): 
-		short_term_snow_drought = calculate_short_term_snow_drought(master_param_dict,year_of_interest,int(agg_step),huc_dict,season)
+		short_term_snow_drought = calculate_short_term_snow_drought(master_param_dict,year_of_interest,int(agg_step),huc_dict,season) #changed from year of interest to iterate through years 02/05/2021
 		pickle.dump(short_term_snow_drought, open(short_term_snow_drought_filename,'ab'))
 	else: 
 		print('Short term snow drought already exists, passing')

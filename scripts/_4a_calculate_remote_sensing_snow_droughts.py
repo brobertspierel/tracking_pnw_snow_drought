@@ -10,6 +10,7 @@ import geopandas as gpd
 import _3_obtain_all_data as obtain_data
 import remote_sensing_functions as rs_funcs
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import matplotlib.font_manager
 
 #assign some lists of HUC4 top level basins by longitude (should consider amending)
 eastern = ['1701','1702','1705','1703','1601','1707','1706','1712','1704']
@@ -45,9 +46,15 @@ def create_snow_drought_subset(input_df,col_of_interest,huc_level):
 
 #functions for plotting 
 
-def plot_quantiles(input_df,elev_field,data_field,huc_field,ylabel,water_year):
+def plot_quantiles(input_df,elev_field,data_field,huc_field,ylabel,water_year,palette):
 	"""Plot basins by elevation quantile."""
+	palette = list(palette.values())
 
+	font = {'family' : 'Times New Roman',
+			        'weight' : 'normal',
+			        'size'   : 14}
+
+	plt.rc('font', **font)
 	#now plot the snow obs by elevation
 	input_df[huc_field] = input_df[huc_field].astype('str')
 	
@@ -68,7 +75,7 @@ def plot_quantiles(input_df,elev_field,data_field,huc_field,ylabel,water_year):
 	
 	df_high = input_df.loc[input_df[elev_field]>=high] #get the 75% quartile df
 	
-	fig,ax=plt.subplots(2,2,sharey=True)
+	fig,ax=plt.subplots(2,2,sharey=True,sharex=True,figsize=(12,8))
 
 	count = 0 
 
@@ -80,46 +87,40 @@ def plot_quantiles(input_df,elev_field,data_field,huc_field,ylabel,water_year):
 		high_plot_df = df_high.loc[df_high[huc_field].str.contains('|'.join(i))]
 		
 		#assign the color palette. This should probably be made into a global variable or put it into the params 
-		pal=['#bdc9e1','#67a9cf','#02818a','#f6eff7']
+		#pal=['#a6cee3','#1f78b4','#b2df8a','#33a02c']
+		try: 
+			sns.boxplot(x="variable", y="value", data=pd.melt(low_plot_df[data_field]),ax=ax[count][0],palette=palette)
+			ax[count][0].set_xlabel(' ')
+			ax[count][0].set_xticklabels(['Dry','Warm','Warm/dry','No drought'])
+			ax[count][0].set_axisbelow(True)
+			ax[count][0].grid(True,axis='both')
 
-		sns.boxplot(x="variable", y="value", data=pd.melt(low_plot_df[data_field]),ax=ax[count][0],palette=pal)
-
-		ax[count][0].set_xlabel(' ')
-		
-		ax[count][0].set_xticklabels(['Dry','Warm','Warm/dry','No drought'])
-		
-		ax[count][0].set_axisbelow(True)
-
-		ax[count][0].grid(True,axis='both')
-
-		sns.boxplot(x="variable", y="value", data=pd.melt(high_plot_df[data_field]),ax=ax[count][1],palette=pal)
-		
-		ax[count][1].set_xlabel(' ')
-
-		ax[count][1].set_xticklabels(['Dry','Warm','Warm/dry','No drought'])
-
-		ax[count][1].set_axisbelow(True)		
-		
-		ax[count][1].grid(True,axis='both')
-		
-		#title the subplots 
-		ax[count][0].set_title(f'{water_year} water year {labels[count]} \n 25th elevation quartile')
-		ax[count][1].set_title(f'{water_year} water year {labels[count]} \n 75th elevation quartile')
-		
-		#add an axis title only in the case that its the left plot 
-	
-		if ylabel == None: 
-			ax[count][0].set_ylabel('MODIS snow persistence')
-			#ax[count][0].set_ylabel('MODIS snow persistence')
-		else: 
-			ax[count][0].set_ylabel(ylabel)
-			#ax[count][0].set_ylabel(ylabel)
-		
-		ax[count][1].set_ylabel(' ')
-	
+			sns.boxplot(x="variable", y="value", data=pd.melt(high_plot_df[data_field]),ax=ax[count][1],palette=palette)
+			ax[count][1].set_xlabel(' ')
+			ax[count][1].set_xticklabels(['Dry','Warm','Warm/dry','No drought'])
+			ax[count][1].set_axisbelow(True)		
+			ax[count][1].grid(True,axis='both')
 			
+			#title the subplots 
+			ax[count][0].set_title(f'{water_year} water year {labels[count]} \n 25th elevation quartile')
+			ax[count][1].set_title(f'{water_year} water year {labels[count]} \n 75th elevation quartile')
+			
+			#add an axis title only in the case that its the left plot 
 		
-		count+=1
+			if ylabel == None: 
+				ax[count][0].set_ylabel('MODIS snow persistence')
+				#ax[count][0].set_ylabel('MODIS snow persistence')
+			else: 
+				ax[count][0].set_ylabel(ylabel)
+				#ax[count][0].set_ylabel(ylabel)
+			
+			ax[count][1].set_ylabel(' ')
+		
+				
+			
+			count+=1
+		except Exception as e: 
+			print('You likely forgot to change the year of interest arg or one of the other inputs. Double check year consistency and try again.')
 	
 	plt.tight_layout()
 	plt.show()
@@ -148,10 +149,11 @@ def main():
 		optical_csv_dir = variables["optical_csv_dir"]
 		huc_level = variables["huc_level"]
 		resolution = variables["resolution"]
-
+		palette = variables["palette"]
+		print(palette)
 		#user defined functions 
 		plot_func = 'quartile'
-		elev_stat = 'elev_max'
+		elev_stat = 'elev_mean'
 		#self,sentinel_data,optical_data,snotel_data,hucs_data,huc_level,resolution): 
 		#get all the data 
 		snotel_data = pickles+f'short_term_snow_drought_{year_of_interest}_water_year_{season}_{agg_step}_day_time_step_w_all_dates'
@@ -210,8 +212,9 @@ def main():
 		#get the rs data for the time periods of interest for a snow drought type 
 		#warm_dry_optical=warm_dry_combined.groupby('huc'+huc_level)['ndsi_pct_change'].sum()
 		warm_dry_combined.rename(columns={'wet_snow_by_area':'warm_dry_WSCA'},inplace=True)
+		print(warm_dry_combined.shape)
 		warm_dry_sar = warm_dry_combined.groupby('huc'+huc_level)['warm_dry_WSCA',elev_stat].median()
-		
+		print(warm_dry_sar)
 
 		#try making a df of time steps that DO NOT have snow droughts for comparing
 		no_snow_drought = create_snow_drought_subset(short_term_snow_drought,'date',huc_level)
@@ -247,7 +250,7 @@ def main():
 			# print(dfs.mean())
 			#dfs.drop(columns=['elev_max_x'],inplace=True)
 			#dfs['elev_max'] = dfs['elev_max_y'].astype('int')
-			plot_quantiles(dfs,elev_stat,['dry_WSCA','warm_WSCA','warm_dry_WSCA','no_drought_WSCA'],'huc'+huc_level,'Wet snow covered area (sq km)',year_of_interest) #amended 2/1/2021
+			plot_quantiles(dfs,elev_stat,['dry_WSCA','warm_WSCA','warm_dry_WSCA','no_drought_WSCA'],'huc'+huc_level,'Wet snow covered area (sq km)',year_of_interest,palette) #amended 2/1/2021
 		
 		elif plot_func.lower() == 'combined': 
 
