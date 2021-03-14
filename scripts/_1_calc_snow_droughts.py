@@ -59,7 +59,7 @@ def add_dates_to_df(input_df,season,year_of_interest):
 	else: 
 		pass
 
-	start_date = f'{start_year}-{season_window_dates(season)[0]}-06' #calendar.monthrange gets (week start, days in month) index for days in month 
+	start_date = f'{start_year}-{season_window_dates(season)[0]}-01' #calendar.monthrange gets (week start, days in month) index for days in month 
 	end_date = f'{year_of_interest}-{season_window_dates(season)[0]}-{calendar.monthrange(year_of_interest,int(season_window_dates(season)[0]))[1]}'
 
 	#add a date column
@@ -229,30 +229,35 @@ def main():
 	
 	##########################################################################
 	#read in the SNOTEL station data
-	filename = pickles+f'master_dict_all_states_all_years_all_params_dict_{anom_start_date}_{anom_end_date}_{season}_updated'
+	filename = pickles+f'master_dict_all_states_all_years_all_params_dict_{anom_start_date}_{anom_end_date}_extended_winter_updated'
+	try: 
+		if os.path.exists(filename): 
+			master_param_dict=combine.pickle_opener(filename)
+			pd.set_option("display.max_rows", None, "display.max_columns", None) #change to print an entire df
 
-	if os.path.exists(filename): 
-		master_param_dict=combine.pickle_opener(filename)
-		pd.set_option("display.max_rows", None, "display.max_columns", None) #change to print an entire df
-
-		#print(master_param_dict['tavg']['304'].iloc[:,0])
-	else: 
-		print(f'The filename {filename} you supplied for the snotel data is incorrect. Please check the file path and try again.')
+			#print(master_param_dict['tavg']['304'].iloc[:,0])
+		else: 
+			print(f'The filename {filename} you supplied for the snotel data is incorrect. Please check the file path and try again.')
+	except Exception as e:
+		print(f'The error was: {e} and its likely the error is that you are trying to use a different season than was used for original generation.') 
 
 	# ########################################################################
 	#this is working and generates the snow drought years or weeks
+	try: 
+		long_term_snow_drought_filename = pickles+f'long_term_snow_drought_{anom_start_date}_{anom_end_date}_{season}_w_hucs'
 
-	long_term_snow_drought_filename = pickles+f'long_term_snow_drought_{anom_start_date}_{anom_end_date}_{season}_w_hucs'
-
-	if not os.path.exists(long_term_snow_drought_filename): 
-		long_term_snow_drought=calculate_long_term_snow_drought(master_param_dict,anom_start_date,anom_end_date,year_of_interest,huc_dict)
-		pickle.dump(long_term_snow_drought, open(long_term_snow_drought_filename,'ab'))
-	else: 
-		print('Long term snow drought exists, passing')
+		if not os.path.exists(long_term_snow_drought_filename): 
+			long_term_snow_drought=calculate_long_term_snow_drought(master_param_dict,anom_start_date,anom_end_date,year_of_interest,huc_dict)
+			pickle.dump(long_term_snow_drought, open(long_term_snow_drought_filename,'ab'))
+		else: 
+			print('Long term snow drought exists, passing')
+	except Exception as e: 
+		print(f'The error with long term snow drought calculation was: {e}')
+		print('Its likely the error you are seeing is the result of a change in the season you are calling.')
 	#years = [i for i in list(range(2004,2018))]
 	#for year in years: 
 		#print('year is: ', year)
-	short_term_snow_drought_filename = pickles+f'short_term_snow_drought_{year_of_interest}_water_year_{season}_{agg_step}_day_time_step_w_all_dates' #moved inside for loop 02/05/2021
+	short_term_snow_drought_filename = pickles+f'short_term_snow_drought_{year_of_interest}_water_year_{season}_{agg_step}_day_time_step_w_all_dates_first_day_start' #moved inside for loop 02/05/2021
 
 	if not os.path.exists(short_term_snow_drought_filename): 
 		short_term_snow_drought = calculate_short_term_snow_drought(master_param_dict,year_of_interest,int(agg_step),huc_dict,season) #changed from year of interest to iterate through years 02/05/2021

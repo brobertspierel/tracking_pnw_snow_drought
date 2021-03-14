@@ -96,8 +96,11 @@ def main():
 			warm_counts = long_term_snow_drought['warm'].value_counts()
 			warm_dry_counts = long_term_snow_drought['warm_dry'].value_counts()
 			
+			print('dry')
 			print(dry_counts)
+			print('warm')
 			print(warm_counts)
+			print('warm_dry')
 			print(warm_dry_counts)
 			plt.rcParams.update({'font.size': 18})
 

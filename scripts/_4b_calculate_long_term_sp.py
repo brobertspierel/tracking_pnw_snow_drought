@@ -12,6 +12,8 @@ import _4a_calculate_remote_sensing_snow_droughts as _4a_rs
 import _3_obtain_all_data as obtain_data
 import re
 import math 
+from scipy import stats
+
 
 western = ['1708','1801','1710','1711','1709']
 eastern = ['1701','1702','1705','1703','1601','1707','1706','1712','1704']
@@ -71,14 +73,20 @@ def split_basins(input_df,grouping_col):
 	west_df.drop(columns=[grouping_col,'elev_mean'],inplace=True) #added the hardcoded drop of the elev col to clean up for plotting
 	east_df.drop(columns=[grouping_col,'elev_mean'],inplace=True)
 
-	west_mean = west_df.mean(axis=0)
-	east_mean = east_df.mean(axis=0)
+	west_mean = west_df.median(axis=0)
+	east_mean = east_df.median(axis=0)
 
 	return west_mean,east_mean
 
 
-def merge_dfs(snotel_data,rs_data,huc_level,col_of_interest,elev_stat): 
+def merge_dfs(snotel_data,rs_data,huc_level,col_of_interest,elev_stat,plot_type): 
 	"""Merge snotel snow drought data with RS data."""
+
+	# if plot_type.upper() == 'SP': 
+	# 		rs_data = rs_data.loc[rs_data['NDSI_Snow_Cover']>= 0.2]
+	# else: 
+	# 	print('Assuming this is SCA data and we will not threshold')
+
 	dry_combined = _4a_rs.create_snow_drought_subset(snotel_data,'dry',huc_level)
 	#merge em 
 	dry_combined=dry_combined.merge(rs_data, on=['date','huc'+huc_level], how='inner') #changed rs_df to sentinel data 2/1/2021 to accommodate missing modis data temporarily 
@@ -150,17 +158,24 @@ def main():
 		testing = variables['testing']
 		
 		#set a few script specific user params
-		plot_type = 'long_term'
+		plot_type = 'long_term' #one of drought_type,long-term or something else 
 		plotting_param = 'SCA'
 		#plot_func = 'quartile'
 		elev_stat = 'elev_mean'
 		
 
 		#dfs = read_in_and_reformat_data(csv_dir,'huc8','NDSI_Snow_Cover',['.geo','system:index','elev_min','elev_max'],resolution,plotting_param,plot_type)
-		dfs = read_in_and_reformat_data(modis_dir,'huc8','NDSI_Snow_Cover',['.geo','system:index'],resolution,plotting_param,plot_type)
-		
-	
-		if not plot_type == 'long_term': 
+		dfs = read_in_and_reformat_data(csv_dir,'huc8','NDSI_Snow_Cover',['.geo','system:index'],resolution,plotting_param,plot_type)
+		print('sp_data')
+		print(dfs)
+		if not (plot_type == 'long_term') | (plot_type == 'drought_type'): 
+			fig,(ax,ax1)=plt.subplots(2)
+			sns.lineplot(dfs[0]['year'],dfs[0]['NDSI_Snow_Cover'],ax=ax)
+			sns.lineplot(dfs[1]['year'],dfs[1]['NDSI_Snow_Cover'],ax=ax1)
+
+			plt.show()
+			plt.close()
+		elif plot_type == 'drought_type': 
 			west_dfs_list = []
 			east_dfs_list = []
 			years = []
@@ -170,21 +185,21 @@ def main():
 				year = int(re.findall('(\d{4})-\d{2}-\d{2}', os.path.split(file)[1])[1]) #gets a list with the start and end of the water year, take the second one 
 				print(year)
 				
-				snotel_data = pickles+f'short_term_snow_drought_{year}_water_year_{season}_{agg_step}_day_time_step_w_all_dates'
+				snotel_data = pickles+f'short_term_snow_drought_{year}_water_year_{season}_{agg_step}_day_time_step_w_all_dates_first_day_start'
+
 
 				input_data = obtain_data.AcquireData(None,file,snotel_data,None,huc_level,resolution)
 				
 				short_term_snow_drought = input_data.get_snotel_data()
-				
+				print(short_term_snow_drought)
 				optical_data = input_data.get_optical_data('NDSI_Snow_Cover')
-
 				#optical_data = dfs[1]
 				optical_data[f'huc{huc_level}'] = pd.to_numeric(optical_data['huc'+huc_level]) 
 				optical_data['date'] = _4a_rs.convert_date(optical_data,'date')
 
 				#combine the remote sensing and snotel data using the snotel dates of snow droughts to extract rs data 
-				merged=merge_dfs(short_term_snow_drought,optical_data,huc_level,'NDSI_Snow_Cover',elev_stat)
-				
+				merged=merge_dfs(short_term_snow_drought,optical_data,huc_level,'NDSI_Snow_Cover',elev_stat,plotting_param)
+				print(merged)
 				split_dfs=split_basins(merged,f'huc{huc_level}') #returns the merged df split into two dfs, west (0) and east (1)
 
 				west_dfs_list.append(split_dfs[0].to_frame().T)
@@ -201,6 +216,11 @@ def main():
 			output_east_df = output_east_df.set_index('year')
 			print(output_west_df)
 			#plot it
+			font = {'family' : 'normal',
+        	'weight' : 'normal',
+        	'size'   : 18}
+
+			plt.rc('font', **font)
 			fig,(ax,ax1) = plt.subplots(2,1,sharex=True,sharey=True,figsize=(12,8))
 
 			font = {'family' : 'Times New Roman',
@@ -214,9 +234,9 @@ def main():
 			palette = list(palette.values())
 			output_west_df.plot(ax=ax,color=palette,linewidth=3.5,)
 			ax.set_xticks(years)
-			ax.set_title('Western Basins SCA by drought type')
+			ax.set_title('Western Basins SP by drought type')
 			ax.set_xlabel(' ')
-			ax.set_ylabel('SCA (sq km)')
+			ax.set_ylabel('SP')
 			ax.grid()
 			ax.legend(labels=labels)
 			ax.tick_params(axis='x', labelsize=15)
@@ -224,9 +244,9 @@ def main():
 			
 			output_east_df.plot(ax=ax1,color=palette,linewidth=3.5,legend=False)
 			ax1.set_xticks(years)
-			ax1.set_title('Eastern Basins SCA by drought type')
+			ax1.set_title('Eastern Basins SP by drought type')
 			ax1.set_xlabel(' ')
-			ax1.set_ylabel('SCA (sq km)')
+			ax1.set_ylabel('SP')
 			ax1.grid()
 
 			plt.tight_layout()
@@ -234,77 +254,62 @@ def main():
 			plt.close('all')
 
 		elif plot_type.lower() == 'long_term': #use to make plots of the long term trends in optical data 
+			font = {'family' : 'normal',
+        	'weight' : 'normal',
+        	'size'   : 18}
+
+			plt.rc('font', **font)
 			fig,(ax,ax1) = plt.subplots(2,1,sharex=True,sharey=True)
-			west_yrs_basins = dfs[0].groupby(['huc8','year'])['NDSI_Snow_Cover'].max().to_frame().reset_index()
-			#ci = 1.96 * np.std(y)/np.mean(y)
-			#west_yrs_basins['ci']=1.96 * np.std('NDSI_Snow_Cover')/np.mean('NDSI_Snow_Cover')
-			print(west_yrs_basins)
-			stats = west_yrs_basins.groupby(['year'])['NDSI_Snow_Cover'].agg(['mean', 'count', 'std'])
-			# print(stats)
-			# print('-'*30)
 
-			ci95_hi = []
-			ci95_lo = []
+			#decide if we're plotting SP or SCA 
+			
+			if plotting_param.upper() == 'SP': 
+				print('plotting SP')
+				linewidth=2.5
+				west_yrs=dfs[0]
+				east_yrs=dfs[1]
 
-			for i in stats.index:
-			    m, c, s = stats.loc[i]
-			    ci95_hi.append(m + 1.96*s/math.sqrt(c))
-			    ci95_lo.append(m - 1.96*s/math.sqrt(c))
+			elif plotting_param.upper() == 'SCA': 
+				print('plotting SCA')
+				linewidth=3.5
+				west_yrs_basins = dfs[0].groupby(['huc8','year'])['NDSI_Snow_Cover'].median().to_frame().reset_index()
+				west_yrs = west_yrs_basins.groupby('year')['NDSI_Snow_Cover'].sum().to_frame().reset_index()
 
-			stats['ci95_hi'] = ci95_hi
-			stats['ci95_lo'] = ci95_lo
-			print(stats)
-
-			west_yrs = west_yrs_basins.groupby('year')['NDSI_Snow_Cover'].sum().to_frame().reset_index()
-			print(west_yrs)
-		
-			#dfs[0].groupby('year')['NDSI_Snow_Cover'].sum().to_frame().reset_index()
+				east_yrs_basins = dfs[1].groupby(['huc8','year'])['NDSI_Snow_Cover'].median().to_frame().reset_index()
+				east_yrs = east_yrs_basins.groupby('year')['NDSI_Snow_Cover'].sum().to_frame().reset_index()
+			
+			else: 
+				print('Your plotting param seems incorrect, double check and try again.')
 			#linreg_df_west = dfs[0].groupby('year')['NDSI_Snow_Cover'].sum().to_frame().reset_index()
+
+			#get coeffs of linear fit
+			#slope, intercept, r_value, p_value, std_err = stats.linregress(west_yrs['year'],west_yrs['NDSI_Snow_Cover'])
+			print(west_yrs['NDSI_Snow_Cover'].mean())
+			print(east_yrs['NDSI_Snow_Cover'].mean())
 			ax.grid()
-			sns.lineplot(x='year',y='NDSI_Snow_Cover',data=west_yrs,ax=ax,color='#d8b365')
-			ax.set_title(f'Western river basins MODIS/VIIRS {plotting_param}')
+			sns.lineplot(x='year',y='NDSI_Snow_Cover',data=west_yrs,ax=ax,color='#565656',linewidth=linewidth)
+			ax.set_title(f'Western river basins MODVII {plotting_param}')
 			ax.set_xticks(dfs[0]['year'].unique()) 
 			ax.set_xlabel(' ')
-			
-	
-			ax.plot(np.unique(west_yrs['year']), np.poly1d(np.polyfit(west_yrs['year'], west_yrs['NDSI_Snow_Cover'], 1))(np.unique(west_yrs['year'])),color='red',linestyle='--')#,label='west')
-			#ax.plot(np.unique(east_df[x_col]), np.poly1d(np.polyfit(east_df[x_col], east_df[y_col], 1))(np.unique(east_df[x_col])),color='blue',label='east')
-			
-			#linreg = rs_funcs.lin_reg_outputs(linreg_df,'year','NDSI_Snow_Cover')[0]
-			#print(linreg)
-			# east_linreg = rs_funcs.lin_reg_outputs(linreg_df_east,'year','NDSI_Snow_Cover')[0]
-
-			# #Similarly the r-squared value: -
-			# #ax.annotate(f'r2 = {round(west_linreg.rvalue,2)}',xy=(0.7,0.75),xycoords='figure fraction')
-			# ax1.annotate(f'east r2 = {round(east_linreg.rvalue,2)}',xy=(0.7,0.7),xycoords='figure fraction')	 
 
 			ax1.grid()
 			#linreg_df_east = dfs[1].groupby('year')['NDSI_Snow_Cover'].sum().to_frame().reset_index()
-			east_yrs_basins = dfs[1].groupby(['huc8','year'])['NDSI_Snow_Cover'].max().to_frame().reset_index()
-			east_yrs = east_yrs_basins.groupby('year')['NDSI_Snow_Cover'].sum().to_frame().reset_index()
+			
 
-			sns.lineplot(x='year',y='NDSI_Snow_Cover',data=east_yrs,ax=ax1,color='#5ab4ac')
-			ax1.set_title(f'Eastern river basins MODIS/VIIRS {plotting_param}')
+			sns.lineplot(x='year',y='NDSI_Snow_Cover',data=east_yrs,ax=ax1,color='#565656',linewidth=linewidth)
+			ax1.set_title(f'Eastern river basins MODVII {plotting_param}')
 			ax1.set_xticks(dfs[1]['year'].unique())
+
 			ax1.set_xlabel(' ')
 
-			#add a linear regression line
-			ax1.plot(np.unique(east_yrs['year']), np.poly1d(np.polyfit(east_yrs['year'], east_yrs['NDSI_Snow_Cover'], 1))(np.unique(east_yrs['year'])),color='red',linestyle='--')
-			#east_linreg = rs_funcs.lin_reg_outputs(east_yrs,'year','NDSI_Snow_Cover')[0]
-
-			#Similarly the r-squared value: -
-			#ax.annotate(f'r2 = {round(west_linreg.rvalue,2)}',xy=(0.7,0.75),xycoords='figure fraction')
-			#ax1.annotate(f'east r2 = {round(east_linreg.rvalue,2)}',xy=(0.25,0.25),xycoords='figure fraction')	 
+			#add ylabels 
 			if plotting_param.upper() == 'SP': 
 				ax.set_ylabel('DJF snow persistence')
 				ax1.set_ylabel('DJF snow persistence')
 			elif plotting_param.upper() == 'SCA': 
 				ax.set_ylabel(f'{plotting_param} total (sq km)')
 				ax1.set_ylabel(f'{plotting_param} total (sq km)')
-			else: 
-				print('Your plotting param seems incorrect, double check and try again.')
-			
-			#plt.plot(df.set_index('huc8').T)
+			plt.xticks(rotation=45)
 			plt.show() 
 			plt.close('all')
 		else: 
@@ -312,7 +317,22 @@ def main():
 if __name__ == '__main__':
     main()
 
+   #ax.plot(np.unique(west_yrs['year']), np.poly1d(np.polyfit(west_yrs['year'], west_yrs['NDSI_Snow_Cover'], 1))(np.unique(west_yrs['year'])),color='red',linestyle='--')#,label='west')
+			#ax.plot(np.unique(east_df[x_col]), np.poly1d(np.polyfit(east_df[x_col], east_df[y_col], 1))(np.unique(east_df[x_col])),color='blue',label='east')
+			
+			#linreg = rs_funcs.lin_reg_outputs(linreg_df,'year','NDSI_Snow_Cover')[0]
+			#west_linreg = rs_funcs.lin_reg_outputs(west_yrs,'year','NDSI_Snow_Cover')[0]
 
+			# # #Similarly the r-squared value: -
+			# ax1.annotate(f'east r2 = {round(east_linreg.rvalue,2)}',xy=(0.7,0.7),xycoords='figure fraction')	 
+
+#add a linear regression line
+			#ax1.plot(np.unique(east_yrs['year']), np.poly1d(np.polyfit(east_yrs['year'], east_yrs['NDSI_Snow_Cover'], 1))(np.unique(east_yrs['year'])),color='red',linestyle='--')
+			#east_linreg = rs_funcs.lin_reg_outputs(east_yrs,'year','NDSI_Snow_Cover')[0]
+
+			#Similarly the r-squared value: -
+			#ax.annotate(f'r2 = {round(west_linreg.rvalue,2)}',xy=(0.7,0.75),xycoords='figure fraction')
+			#ax1.annotate(f'east r2 = {round(east_linreg.rvalue,2)}',xy=(0.25,0.25),xycoords='figure fraction')	 
 # elif plot_type.lower() == 'long_term': #use to make plots of the long term trends in optical data 
 # 			fig,(ax,ax1) = plt.subplots(2,1,sharex=True,sharey=True)
 			

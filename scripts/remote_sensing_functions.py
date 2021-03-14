@@ -106,7 +106,8 @@ def read_optical_and_convert_to_area(optical_data,resolution,data_source,col_of_
 	Read in optical data (generally MODIS/VIIRS) and convert pixel counts to area.
 	"""
 	df = read_csv(optical_data,data_source)
-	df = convert_pixel_count_sq_km(df,col_of_interest,resolution)
+	# if not 'SP' in optical_data: 
+	# 	df = convert_pixel_count_sq_km(df,col_of_interest,resolution)
 	return df 
 
 

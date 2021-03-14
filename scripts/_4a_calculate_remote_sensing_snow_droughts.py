@@ -68,12 +68,16 @@ def plot_quantiles(input_df,elev_field,data_field,huc_field,ylabel,water_year,pa
 	labels = ['Eastern basins','Western basins']
 	
 	#assign quantiles- currently hardcoded for low and high quartiles 
-
-	low, high = input_df[elev_field].quantile([0.25,0.75])
-	
-	df_low = input_df.loc[input_df[elev_field]<=low] #get the 25% quartile df
-	
-	df_high = input_df.loc[input_df[elev_field]>=high] #get the 75% quartile df
+	#print('elev col',input_df[[elev_field,huc_field]])
+	#print('elev counts',input_df[elev_field].value_counts())
+	# low, high = input_df[elev_field].quantile([0.25,0.75])
+	# #print(low,high)
+	# #print('input',input_df)
+	# #print(input_df.dtypes)
+	# df_low = input_df.loc[input_df[elev_field]<=low] #get the 25% quartile df
+	# #print('low df')
+	# #print(df_low)
+	# df_high = input_df.loc[input_df[elev_field]>=high] #get the 75% quartile df
 	
 	fig,ax=plt.subplots(2,2,sharey=True,sharex=True,figsize=(12,8))
 
@@ -82,20 +86,30 @@ def plot_quantiles(input_df,elev_field,data_field,huc_field,ylabel,water_year,pa
 	for i in list([eastern,western]): 
 
 		#get a low and high df for east and west (depending on the iteration)
-		low_plot_df = df_low.loc[df_low[huc_field].str.contains('|'.join(i))]
+		region_df = input_df.loc[input_df[huc_field].str.contains('|'.join(i))]
 		
-		high_plot_df = df_high.loc[df_high[huc_field].str.contains('|'.join(i))]
-		
+		low,high = region_df[elev_field].quantile([0.25,0.75])
+
+		df_low = region_df.loc[input_df[elev_field]<=low] #get the 25% quartile df
+		#print('low df')
+		#print(df_low)
+		df_high = region_df.loc[input_df[elev_field]>=high] #get the 75% quartile df
+
+		# print('low_plot_df')
+		# print(low_plot_df)
+		# high = df_high.loc[df_high[huc_field].str.contains('|'.join(i))]
+		# print('high_plot_df')
+		# print(high_plot_df)
 		#assign the color palette. This should probably be made into a global variable or put it into the params 
 		#pal=['#a6cee3','#1f78b4','#b2df8a','#33a02c']
 		try: 
-			sns.boxplot(x="variable", y="value", data=pd.melt(low_plot_df[data_field]),ax=ax[count][0],palette=palette)
+			sns.boxplot(x="variable", y="value", data=pd.melt(df_low[data_field]),ax=ax[count][0],palette=palette)
 			ax[count][0].set_xlabel(' ')
 			ax[count][0].set_xticklabels(['Dry','Warm','Warm/dry','No drought'])
 			ax[count][0].set_axisbelow(True)
 			ax[count][0].grid(True,axis='both')
 
-			sns.boxplot(x="variable", y="value", data=pd.melt(high_plot_df[data_field]),ax=ax[count][1],palette=palette)
+			sns.boxplot(x="variable", y="value", data=pd.melt(df_high[data_field]),ax=ax[count][1],palette=palette)
 			ax[count][1].set_xlabel(' ')
 			ax[count][1].set_xticklabels(['Dry','Warm','Warm/dry','No drought'])
 			ax[count][1].set_axisbelow(True)		
@@ -120,6 +134,8 @@ def plot_quantiles(input_df,elev_field,data_field,huc_field,ylabel,water_year,pa
 			
 			count+=1
 		except Exception as e: 
+			print(f'The error is: {e}')
+			raise
 			print('You likely forgot to change the year of interest arg or one of the other inputs. Double check year consistency and try again.')
 	
 	plt.tight_layout()
@@ -150,7 +166,7 @@ def main():
 		huc_level = variables["huc_level"]
 		resolution = variables["resolution"]
 		palette = variables["palette"]
-		print(palette)
+
 		#user defined functions 
 		plot_func = 'quartile'
 		elev_stat = 'elev_mean'
@@ -163,7 +179,6 @@ def main():
 		short_term_snow_drought = input_data.get_snotel_data()
 		sentinel_data = input_data.get_sentinel_data('filter')
 		optical_data = input_data.get_optical_data('NDSI_Snow_Cover')
-		
 		
 		# pd.set_option("display.max_rows", None, "display.max_columns", None) #change to print an entire df
 		# #combine the sentinel and optical data 
@@ -212,9 +227,7 @@ def main():
 		#get the rs data for the time periods of interest for a snow drought type 
 		#warm_dry_optical=warm_dry_combined.groupby('huc'+huc_level)['ndsi_pct_change'].sum()
 		warm_dry_combined.rename(columns={'wet_snow_by_area':'warm_dry_WSCA'},inplace=True)
-		print(warm_dry_combined.shape)
 		warm_dry_sar = warm_dry_combined.groupby('huc'+huc_level)['warm_dry_WSCA',elev_stat].median()
-		print(warm_dry_sar)
 
 		#try making a df of time steps that DO NOT have snow droughts for comparing
 		no_snow_drought = create_snow_drought_subset(short_term_snow_drought,'date',huc_level)
@@ -235,13 +248,23 @@ def main():
 			print('dfs shape',dfs.shape)
 			
 			dfs = dfs.merge(no_drought_sar.reset_index(),on=['huc'+huc_level],how='outer')
+		
 			#do a little bit of cleaning
 			dfs.replace(np.inf,np.nan,inplace=True)
 			#dfs[['dry_WSCA','warm_WSCA','warm_dry_WSCA','no_drought_WSCA']]>=1 = 1 #=dfs[dfs['dry_WSCA','warm_WSCA','warm_dry_WSCA','no_drought_WSCA']>=1,]
-			dfs[dfs['dry_WSCA'] >= 1] = 1  
-			dfs[dfs['warm_WSCA'] >= 1] = 1  
-			dfs[dfs['warm_dry_WSCA'] >= 1] = 1  
-			dfs[dfs['no_drought_WSCA'] >= 1] = 1  
+			
+			print('dfs look like: ',dfs)
+			#anywhere wet snow exceeeds snow covered area ie value is greater than 1, set it to 1
+			# dfs['dry_WSCA'] = dfs['dry_WSCA']
+			#dfs.loc[dfs['dry_WSCA','warm_WSCA','warm_dry_WSCA'] > 1] = 1  
+			dfs.loc[dfs['dry_WSCA'] > 1,'dry_WSCA'] = np.nan
+			dfs.loc[dfs['warm_WSCA'] > 1,'warm_WSCA'] = np.nan
+			dfs.loc[dfs['warm_dry_WSCA'] > 1,'warm_dry_WSCA'] = np.nan  
+			dfs.loc[dfs['no_drought_WSCA'] > 1,'no_drought_WSCA'] = np.nan
+			#df.loc[df.ID == 103, ['FirstName', 'LastName']] = 'Matt', 'Jones'
+
+			print('dfs now look like: ', dfs)
+			print(dfs.count()) 
 			#dfs[['dry_WSCA','warm_WSCA','warm_dry_WSCA','no_drought_WSCA']] = np.where(dfs[['dry_WSCA','warm_WSCA','warm_dry_WSCA','no_drought_WSCA']] >= 1, 1,dfs)
 
 			# print(dfs.columns)
