@@ -13,6 +13,8 @@ Dependencies:
 		* `geopandas <https://geopandas.org/>`_
 		* matplotlib
 
+This document outlines some workflows and processes used to generate data and figures for this project. 
+
 .. toctree::
    :maxdepth: 1
    :caption: Script examples:
@@ -23,6 +25,14 @@ Dependencies:
    5. Plot remote sensing data <calc_plot_rs_data>
    6. Merge remote sensing data and calculate stats <merge_rs_data_calc_stats>
 
+
+.. toctree:: 
+   :maxdepth: 1
+   :titlesonly:
+   
+   license
+   help
+   
 
 Indices and tables 
 ==================
