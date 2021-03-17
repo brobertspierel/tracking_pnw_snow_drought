@@ -16,14 +16,15 @@ Dependencies:
 This document outlines some workflows and processes used to generate data and figures for this project. 
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Script examples:
-   Acquire SNOTEL data from NRCS <get_snotel>
-   Calculate snow droughts from SNOTEL <calc_snow_drought>
-   Plot snow drought on decadal scale <calc_plot_long_term_snow_drought>
-   Collect all data for analysis <collect_all_data_class>
-   Plot remote sensing data <calc_plot_rs_data>
-   Merge remote sensing data and calculate stats <merge_rs_data_calc_stats>
+
+   Acquire SNOTEL data from NRCS <get_snotel.rst>
+   Calculate snow droughts from SNOTEL <calc_snow_drought.rst>
+   Plot snow drought on decadal scale <calc_plot_long_term_snow_drought.rst>
+   Collect all data for analysis <collect_all_data_class.rst>
+   Plot remote sensing data <calc_plot_rs_data.rst>
+   Merge remote sensing data and calculate stats <merge_rs_data_calc_stats.rst>
 
 
 .. toctree:: 
