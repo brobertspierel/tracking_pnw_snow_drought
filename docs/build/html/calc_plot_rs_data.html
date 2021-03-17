@@ -1,0 +1,347 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>Plot remote sensing data for different snow drought types &mdash; Low snow sar optical 0.0.1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Low snow sar optical
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">Plot remote sensing data for different snow drought types</a></li>
+</ul>
+</div>
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Low snow sar optical</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Plot remote sensing data for different snow drought types</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/calc_plot_rs_data.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="plot-remote-sensing-data-for-different-snow-drought-types">
+<h1>Plot remote sensing data for different snow drought types<a class="headerlink" href="#plot-remote-sensing-data-for-different-snow-drought-types" title="Permalink to this headline">¶</a></h1>
+<p>This documents methods for calculating snow drought from remote sensing data and making various plots to support that work.
+This documentation covers functions and methods in the following scripts:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">_4a_calculate_remote_sensing_snow_droughts.py</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">_4b_calculate_long_term_sp.py</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">_4bv1_calculate_long_term_sp.py</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">_4c_calculate_optical_bias.py</span></code></p></li>
+</ol>
+<p>Example product generation:</p>
+<p>Plot snow covered area (SCA) or snow persistence (SP) for dry, warm, and warm/dry snow droughts. Data for these plots was generated using: ` GEE code &lt;<a class="reference external" href="https://code.earthengine.google.com/c4796925848d9d10fca00052651a2b2e">https://code.earthengine.google.com/c4796925848d9d10fca00052651a2b2e</a>&gt;`_</p>
+<p><strong>Code</strong>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">western</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;1708&#39;</span><span class="p">,</span><span class="s1">&#39;1801&#39;</span><span class="p">,</span><span class="s1">&#39;1710&#39;</span><span class="p">,</span><span class="s1">&#39;1711&#39;</span><span class="p">,</span><span class="s1">&#39;1709&#39;</span><span class="p">]</span>
+<span class="n">eastern</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;1701&#39;</span><span class="p">,</span><span class="s1">&#39;1702&#39;</span><span class="p">,</span><span class="s1">&#39;1705&#39;</span><span class="p">,</span><span class="s1">&#39;1703&#39;</span><span class="p">,</span><span class="s1">&#39;1601&#39;</span><span class="p">,</span><span class="s1">&#39;1707&#39;</span><span class="p">,</span><span class="s1">&#39;1706&#39;</span><span class="p">,</span><span class="s1">&#39;1712&#39;</span><span class="p">,</span><span class="s1">&#39;1704&#39;</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">split_basins</span><span class="p">(</span><span class="n">input_df</span><span class="p">,</span><span class="n">grouping_col</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Read in a dir of landsat sp data from GEE and make into a new df.&quot;&quot;&quot;</span>
+        <span class="n">input_df</span><span class="p">[</span><span class="n">grouping_col</span><span class="p">]</span> <span class="o">=</span> <span class="n">input_df</span><span class="p">[</span><span class="n">grouping_col</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;str&#39;</span><span class="p">)</span>
+        <span class="n">west_df</span> <span class="o">=</span> <span class="n">input_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">input_df</span><span class="p">[</span><span class="n">grouping_col</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="s1">&#39;|&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">western</span><span class="p">))]</span>
+        <span class="n">east_df</span> <span class="o">=</span> <span class="n">input_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">input_df</span><span class="p">[</span><span class="n">grouping_col</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="s1">&#39;|&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">eastern</span><span class="p">))]</span>
+
+        <span class="c1">#replace instances of inf with nan and drop the grouping_col so its not in the mean</span>
+        <span class="n">west_df</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">east_df</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+                <span class="n">west_df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="n">grouping_col</span><span class="p">,</span><span class="s1">&#39;elev_mean&#39;</span><span class="p">],</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="c1">#added the hardcoded drop of the elev col to clean up for plotting</span>
+                <span class="n">east_df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="n">grouping_col</span><span class="p">,</span><span class="s1">&#39;elev_mean&#39;</span><span class="p">],</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">pass</span>
+                <span class="c1">#print(e)</span>
+        <span class="c1"># west_df[&#39;year&#39;] = kwargs.get(&#39;year&#39;)</span>
+        <span class="c1"># east_df[&#39;year&#39;] = kwargs.get(&#39;year&#39;)</span>
+        <span class="c1"># west_mean = west_df.median(axis=0)</span>
+        <span class="c1"># east_mean = east_df.median(axis=0)</span>
+
+        <span class="k">return</span> <span class="n">west_df</span><span class="p">,</span><span class="n">east_df</span>
+
+<span class="k">def</span> <span class="nf">split_dfs_within_winter_season</span><span class="p">(</span><span class="n">df</span><span class="p">,</span><span class="n">region</span><span class="p">,</span><span class="n">sp</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Splits a single df by date ranges in a winter season.&quot;&quot;&quot;</span>
+
+        <span class="n">early_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">month</span><span class="o">&gt;=</span><span class="mi">11</span><span class="p">)]</span>
+        <span class="n">mid_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">month</span><span class="o">&gt;=</span><span class="mi">1</span><span class="p">)</span><span class="o">&amp;</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">month</span><span class="o">&lt;=</span><span class="mi">2</span><span class="p">)]</span>
+        <span class="n">late_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">month</span><span class="o">&gt;=</span><span class="mi">3</span><span class="p">)</span><span class="o">&amp;</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">month</span><span class="o">&lt;=</span><span class="mi">4</span><span class="p">)]</span>
+
+        <span class="k">return</span> <span class="p">{</span><span class="n">region</span><span class="p">:[</span><span class="n">early_df</span><span class="p">,</span><span class="n">mid_df</span><span class="p">,</span><span class="n">late_df</span><span class="p">]}</span>
+
+
+<span class="k">def</span> <span class="nf">merge_dfs</span><span class="p">(</span><span class="n">snotel_data</span><span class="p">,</span><span class="n">rs_data</span><span class="p">,</span><span class="n">drought_type</span><span class="p">,</span><span class="n">huc_level</span><span class="o">=</span><span class="s1">&#39;8&#39;</span><span class="p">,</span><span class="n">col_of_interest</span><span class="o">=</span><span class="s1">&#39;NDSI_Snow_Cover&#39;</span><span class="p">,</span><span class="n">elev_stat</span><span class="o">=</span><span class="s1">&#39;elev_mean&#39;</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span> <span class="c1">#added drought_type arg so the drought type is supplied externally 3/15/2021</span>
+        <span class="sd">&quot;&quot;&quot;Merge snotel snow drought data with RS data.&quot;&quot;&quot;</span>
+
+        <span class="n">combined</span> <span class="o">=</span> <span class="n">_4a_rs</span><span class="o">.</span><span class="n">create_snow_drought_subset</span><span class="p">(</span><span class="n">snotel_data</span><span class="p">,</span><span class="n">drought_type</span><span class="p">,</span><span class="n">huc_level</span><span class="p">)</span>
+        <span class="c1">#merge em</span>
+        <span class="n">combined</span><span class="o">=</span><span class="n">combined</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">rs_data</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">,</span><span class="sa">f</span><span class="s1">&#39;huc</span><span class="si">{</span><span class="n">huc_level</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">],</span> <span class="n">how</span><span class="o">=</span><span class="s1">&#39;inner&#39;</span><span class="p">)</span> <span class="c1">#changed rs_df to sentinel data 2/1/2021 to accommodate missing modis data temporarily</span>
+        <span class="c1">#get the rs data for the time periods of interest for a snow drought type</span>
+        <span class="n">combined</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="n">col_of_interest</span><span class="p">:</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">drought_type</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">col_of_interest</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">},</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="c1">#combined = combined.groupby([f&#39;huc{huc_level}&#39;, &#39;date&#39;])[f&#39;{drought_type}_{col_of_interest}&#39;].transform(max) #doesn&#39;t really matter which stat (max,min,first) because they are all the same</span>
+        <span class="n">combined</span> <span class="o">=</span> <span class="n">combined</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">drought_type</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">col_of_interest</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;huc</span><span class="si">{</span><span class="n">huc_level</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">],</span> <span class="n">keep</span><span class="o">=</span><span class="s1">&#39;first&#39;</span><span class="p">)</span>
+
+        <span class="c1">#print(combined)</span>
+        <span class="c1">#print(combined[[&#39;huc8&#39;,&#39;date&#39;,f&#39;{drought_type}_{col_of_interest}&#39;]])</span>
+        <span class="c1">#check if a couple of args are in kwargs, they can be anything that will evaluate to True</span>
+        <span class="k">if</span> <span class="s1">&#39;groupby&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="n">rs_df</span> <span class="o">=</span> <span class="n">combined</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;date&#39;</span><span class="p">)[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">drought_type</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">col_of_interest</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+                <span class="c1">#dry_rs = dry_combined.groupby(&#39;huc&#39;+huc_level)[f&#39;dry_{col_of_interest}&#39;,elev_stat].max().reset_index() #changed col from pct change to filter 2/1/2021</span>
+
+                <span class="k">if</span> <span class="s1">&#39;scale_it&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                        <span class="n">scaler</span> <span class="o">=</span> <span class="p">(</span><span class="n">combined</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">drought_type</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">col_of_interest</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">()</span><span class="o">/</span><span class="n">rs_data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                        <span class="n">rs_df</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">drought_type</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">col_of_interest</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">rs_df</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">drought_type</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">col_of_interest</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span><span class="o">*</span><span class="n">scaler</span>
+
+                <span class="k">return</span> <span class="n">rs_df</span>
+
+        <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">combined</span>
+
+        <span class="k">def</span> <span class="nf">combine_rs_snotel_annually</span><span class="p">(</span><span class="n">input_dir</span><span class="p">,</span><span class="n">season</span><span class="p">,</span><span class="n">pickles</span><span class="p">,</span><span class="n">agg_step</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span><span class="n">resolution</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span><span class="n">huc_level</span><span class="o">=</span><span class="s1">&#39;8&#39;</span><span class="p">,</span><span class="n">col_of_interest</span><span class="o">=</span><span class="s1">&#39;NDSI_Snow_Cover&#39;</span><span class="p">,</span><span class="n">elev_stat</span><span class="o">=</span><span class="s1">&#39;elev_mean&#39;</span><span class="p">,</span><span class="n">sp</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span><span class="n">total</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+                <span class="sd">&quot;&quot;&quot;Get RS data for snow drought time steps and return those data split by region.&quot;&quot;&quot;</span>
+
+                <span class="n">west_dfs_list</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">east_dfs_list</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">years</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">optical_files</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">input_dir</span><span class="o">+</span><span class="s1">&#39;*.csv&#39;</span><span class="p">))</span>
+
+                <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">optical_files</span><span class="p">:</span>
+                        <span class="n">year</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s1">&#39;(\d</span><span class="si">{4}</span><span class="s1">)-\d</span><span class="si">{2}</span><span class="s1">-\d</span><span class="si">{2}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">file</span><span class="p">)[</span><span class="mi">1</span><span class="p">])[</span><span class="mi">1</span><span class="p">])</span> <span class="c1">#gets a list with the start and end of the water year, take the second one. expects files to be formatted a specific way from GEE</span>
+                        <span class="c1">#decide which season length to use depending on the RS aggregation type (SP or SCA)</span>
+                        <span class="k">if</span> <span class="s1">&#39;SP&#39;</span> <span class="ow">in</span> <span class="n">file</span><span class="p">:</span>
+                                <span class="n">snotel_data</span> <span class="o">=</span> <span class="n">pickles</span><span class="o">+</span><span class="sa">f</span><span class="s1">&#39;short_term_snow_drought_</span><span class="si">{</span><span class="n">year</span><span class="si">}</span><span class="s1">_water_year_</span><span class="si">{</span><span class="n">season</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">agg_step</span><span class="si">}</span><span class="s1">_day_time_step_w_all_dates_first_day_start&#39;</span>
+                        <span class="k">elif</span> <span class="s1">&#39;SCA&#39;</span> <span class="ow">in</span> <span class="n">file</span><span class="p">:</span>
+                                <span class="n">snotel_data</span> <span class="o">=</span> <span class="n">pickles</span><span class="o">+</span><span class="sa">f</span><span class="s1">&#39;short_term_snow_drought_</span><span class="si">{</span><span class="n">year</span><span class="si">}</span><span class="s1">_water_year_</span><span class="si">{</span><span class="n">season</span><span class="si">}</span><span class="s1">_</span><span class="si">{</span><span class="n">agg_step</span><span class="si">}</span><span class="s1">_day_time_step_w_all_dates&#39;</span>
+                        <span class="k">else</span><span class="p">:</span>
+                                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Your file contains neither sp nor SCA, try again&#39;</span><span class="p">)</span>
+
+                        <span class="n">input_data</span> <span class="o">=</span> <span class="n">obtain_data</span><span class="o">.</span><span class="n">AcquireData</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span><span class="n">file</span><span class="p">,</span><span class="n">snotel_data</span><span class="p">,</span><span class="kc">None</span><span class="p">,</span><span class="n">huc_level</span><span class="p">,</span><span class="n">resolution</span><span class="p">)</span>
+
+                        <span class="n">short_term_snow_drought</span> <span class="o">=</span> <span class="n">input_data</span><span class="o">.</span><span class="n">get_snotel_data</span><span class="p">()</span>
+                        <span class="n">optical_data</span> <span class="o">=</span> <span class="n">input_data</span><span class="o">.</span><span class="n">get_optical_data</span><span class="p">(</span><span class="s1">&#39;NDSI_Snow_Cover&#39;</span><span class="p">)</span>
+                        <span class="n">optical_data</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;huc</span><span class="si">{</span><span class="n">huc_level</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_numeric</span><span class="p">(</span><span class="n">optical_data</span><span class="p">[</span><span class="s1">&#39;huc&#39;</span><span class="o">+</span><span class="n">huc_level</span><span class="p">])</span>
+                        <span class="n">optical_data</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_4a_rs</span><span class="o">.</span><span class="n">convert_date</span><span class="p">(</span><span class="n">optical_data</span><span class="p">,</span><span class="s1">&#39;date&#39;</span><span class="p">)</span>
+
+                        <span class="c1">#convert pixel counts to area</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="n">sp</span><span class="p">:</span>
+                                <span class="n">optical_data</span><span class="o">=</span><span class="n">rs_funcs</span><span class="o">.</span><span class="n">convert_pixel_count_sq_km</span><span class="p">(</span><span class="n">optical_data</span><span class="p">,</span><span class="n">col_of_interest</span><span class="p">,</span><span class="n">resolution</span><span class="p">)</span>
+
+                        <span class="c1">#optical_data[&#39;year&#39;] = optical_data[&#39;date&#39;].dt.year</span>
+
+                        <span class="k">if</span> <span class="ow">not</span> <span class="n">total</span><span class="p">:</span>
+                                <span class="c1">#combine the remote sensing and snotel data using the snotel dates of snow droughts to extract rs data</span>
+                                <span class="n">merged</span><span class="o">=</span><span class="n">merge_dfs</span><span class="p">(</span><span class="n">short_term_snow_drought</span><span class="p">,</span><span class="n">optical_data</span><span class="p">,</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;drought_type&#39;</span><span class="p">))</span> <span class="c1">#snotel_data,rs_data,drought_type</span>
+                        <span class="k">else</span><span class="p">:</span>
+                                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Calculating total with no snow droughts&#39;</span><span class="p">)</span>
+                        <span class="c1">#output = split_dfs_within_winter_season</span>
+                        <span class="k">try</span><span class="p">:</span>
+                                <span class="n">split_dfs</span><span class="o">=</span><span class="n">split_basins</span><span class="p">(</span><span class="n">merged</span><span class="p">,</span><span class="sa">f</span><span class="s1">&#39;huc</span><span class="si">{</span><span class="n">huc_level</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">year</span><span class="o">=</span><span class="n">year</span><span class="p">)</span> <span class="c1">#returns the merged df split into two dfs, west (0) and east (1)</span>
+
+                        <span class="k">except</span> <span class="ne">UnboundLocalError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                                <span class="n">split_dfs</span><span class="o">=</span><span class="n">split_basins</span><span class="p">(</span><span class="n">optical_data</span><span class="p">,</span><span class="sa">f</span><span class="s1">&#39;huc</span><span class="si">{</span><span class="n">huc_level</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span><span class="n">year</span><span class="o">=</span><span class="n">year</span><span class="p">)</span> <span class="c1">#returns the merged df split into two dfs, west (0) and east (1)</span>
+
+                        <span class="n">west_dfs_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">split_dfs</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                        <span class="n">east_dfs_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">split_dfs</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+                <span class="n">output_west_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">west_dfs_list</span><span class="p">,</span><span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">output_east_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">east_dfs_list</span><span class="p">,</span><span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+                <span class="k">return</span> <span class="n">output_west_df</span><span class="p">,</span><span class="n">output_east_df</span> <span class="c1">#returns two dfs, one for each region for all the years for one drought type</span>
+</pre></div>
+</div>
+<dl class="simple">
+<dt>Example args to call these functions: ::</dt><dd><p>dry_sp = generate_output(combine_rs_snotel_annually(sp_data,’core_winter’,pickles,drought_type=’dry’,sp=True),sp=True)
+warm_sp = generate_output(combine_rs_snotel_annually(sp_data,’core_winter’,pickles,drought_type=’warm’,sp=True),sp=True)
+warm_dry_sp = generate_output(combine_rs_snotel_annually(sp_data,’core_winter’,pickles,drought_type=’warm_dry’,sp=True),sp=True)
+total_sp = generate_output(combine_rs_snotel_annually(sp_data,’core_winter’,pickles,sp=True,total=True),sp=True)</p>
+</dd>
+<dt>In the example the args are:</dt><dd><ul class="simple">
+<li><p>sp_data- directory of outputs from GEE code linked above</p></li>
+<li><p>“core_winter”- the season used to generate short term snotel-based droughts outlined previously. This is a pickle</p></li>
+<li><p>pickles- directory of short term snow drought pickles</p></li>
+<li><p>sp- boolean for snow persistence data. Arg is optional.</p></li>
+<li><p>total- boolean- is this a snow drought type or just the full dataset. Opptional argument</p></li>
+</ul>
+</dd>
+</dl>
+<div class="toctree-wrapper compound">
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Ben Roberts-Pierel.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

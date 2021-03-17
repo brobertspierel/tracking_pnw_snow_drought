@@ -27,9 +27,10 @@ def create_snow_drought_subset(input_df,col_of_interest,huc_level):
 	"""Helper function."""
 
 	drought_list = ['dry','warm','warm_dry','date']
-	
-	drought_list.remove(col_of_interest)
-	
+	try: 
+		drought_list.remove(col_of_interest)
+	except Exception as e: 
+		print(f'Error was: {e}')
 	df = input_df.drop(columns=drought_list)
 	
 	df['huc_id'] = df['huc_id'].astype('int')

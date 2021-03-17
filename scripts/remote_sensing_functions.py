@@ -18,7 +18,6 @@ def read_csv(input_csv,data_source):
 	df = pd.read_csv(input_csv)
 
 	if data_source.lower() == 'optical': 
-		print('processing optical data')
 		df.rename(columns={'system:time_start':'date'},inplace=True)
 		df['date'] = pd.to_datetime(df['date'])
 	

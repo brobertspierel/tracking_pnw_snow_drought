@@ -28,9 +28,10 @@
 	"water_year_end":"2020", 
 	"optical_csv_dir":"/vol/v1/general_files/user_files/ben/excel_files/modis_data/twelve_day_sum_SCA/MODIS_VIIRS_500m_elev_SCA_season_2019-10-01_2020-07-01_huc8_timestep_12_days.csv", 
 	"hucs_data":"/vol/v1/general_files/user_files/ben/excel_files/huc_data/08_hucs_area_sq_km_1.csv", 
-	"sp_data":"/vol/v1/general_files/user_files/ben/excel_files/landsat_sp_data/", 
+	"sp_data":"/vol/v1/general_files/user_files/ben/excel_files/modis_data/twelve_day_sp/", 
+	"sca_data":"/vol/v1/general_files/user_files/ben/excel_files/modis_data/twelve_day_sum_SCA/",
 	"resolution":"500", 
 	"output_dir":"/vol/v1/general_files/user_files/ben/excel_files/snotel_station_data/", 
-	"palette":{"no_drought":"#cbbdb1","dry":"#ca986a","warm":"#ca7030","warm_dry":"#ad3800"}, 
+	"palette":{"dry":"#ca986a","warm":"#ca7030","warm_dry":"#ad3800"}, 
 	"testing":"/vol/v1/general_files/user_files/ben/excel_files/testing/"
 }
