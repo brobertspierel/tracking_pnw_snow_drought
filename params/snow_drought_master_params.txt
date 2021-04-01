@@ -33,5 +33,6 @@
 	"resolution":"500", 
 	"output_dir":"/vol/v1/general_files/user_files/ben/excel_files/snotel_station_data/", 
 	"palette":{"dry":"#ca986a","warm":"#ca7030","warm_dry":"#ad3800"}, 
-	"testing":"/vol/v1/general_files/user_files/ben/excel_files/testing/"
+	"stats":"/vol/v1/general_files/user_files/ben/pickles/kw_results/", 
+	"fig_dir":"/vol/v1/general_files/user_files/ben/paper_figures/figures/optical_figs/"
 }

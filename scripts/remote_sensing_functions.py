@@ -72,18 +72,13 @@ def lin_reg_outputs(input_df,x_col,y_col):
 ##################################Sentinel specific functions#####################################################
 ##################################################################################################################
 
-def combine_hucs_w_sentinel(hucs_data,sentinel_data,huc_level,resolution,col_of_interest): 
+def combine_hucs_w_sentinel(hucs_data,sentinel_data,huc_level,resolution,col_of_interest='filter'): 
 	"""
 	Read in sentinel 1 wet snow area and hucs data, normalize wet snow area by hucs area.
 	"""
 	#read in data
 	sentinel_df=read_csv(sentinel_data,'sentinel')
 	hucs_df = read_csv(hucs_data,'hucs')
-
-	if not col_of_interest: 
-		col_of_interest = 'filter'
-	else: 
-		pass
 
 	#convert the pixel counts to area
 	sentinel_df=convert_pixel_count_sq_km(sentinel_df,col_of_interest,resolution)

@@ -13,82 +13,107 @@ from collections import defaultdict
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib import colors
+import _3_obtain_all_data as obtain_data
 
+def plot_snow_drought_ratios(input_data,pts_shapefile,pnw_shapefile,us_boundary,year_of_interest,**kwargs):
+	pts_shapefile = pd.read_csv(pts_shapefile)
+	gdf = gpd.GeoDataFrame(pts_shapefile, geometry=gpd.points_from_xy(pts_shapefile.lon, pts_shapefile.lat)) 
+	
 
-def snow_drought_ratios(input_dict,num_weeks): 
-	output_dict = input_dict
-	for k,v in input_dict.items(): #this is the top level dict of hucs
-		for k1,v1 in v.items(): #this is the dict of weeks or years in dry, warm etc for each huc
-				v.update({k1:len(v1)/int(num_weeks)})
-	#print('output dict is: ')
-	#print(output_dict)
-	#print('num weeks is: ',num_weeks)
-	#.rename(columns=['station_id','weekly_ratio']) 
-	# print(warm_dry_df)
-	# print(warm_dry_df.shape)
-
-	return output_dict
-def reformat_dict(input_dict): 
-	return {int(k):round(v,2) for k,v in input_dict.items()}
-def plot_snow_drought_ratios(input_dict,pnw_shapefile,huc_shapefile,us_boundary,input_pts_data,year_of_interest):
-	#dry_df = pd.DataFrame(input_dict['dry'],index=['weekly_ratio']).T.reset_index().rename(columns={'index':'station_id'})
-	#warm_df=pd.DataFrame(input_dict['warm'],index=['weekly_ratio']).T.reset_index().rename(columns={'index':'station_id'}) 
-	#warm_dry_df=pd.DataFrame(input_dict['warm_dry'],index=['weekly_ratio']).T.reset_index().rename(columns={'index':'station_id'})
-	gdf = gpd.GeoDataFrame(input_pts_data, geometry=gpd.points_from_xy(input_pts_data.lon, input_pts_data.lat)) 
-	#print(type(input_dict['dry']))
-	#print(input_dict)
-	#print(type(gdf['site_num'].iloc[0]))
-
-	gdf['dry'] = gdf['site_num'].map(reformat_dict(input_dict['dry'])) 
-	gdf['warm'] = gdf['site_num'].map(reformat_dict(input_dict['warm']))
-	gdf['warm_dry'] = gdf['site_num'].map(reformat_dict(input_dict['warm_dry']))
-	type_list = ['dry','warm','warm_dry']
-	print('gdf is: ')
-	print(gdf.dry)
-	print(gdf.warm_dry)
-	#print(gdf)countries_gdf = geopandas.read_file("package.gpkg", layer='countries')
-	#get background shapefiles
-	hucs=gpd.read_file(huc_shapefile)
-	hucs['coords'] = hucs['geometry'].apply(lambda x: x.representative_point().coords[:]) #add label column to gpd
-	hucs['coords'] = [coords[0] for coords in hucs['coords']]
+	try: 
+		df = gdf.merge(input_data, on=['site_num'], how='inner')
+	except ValueError as e: 
+		gdf['site_num'] = gdf['site_num'].astype('int')
+		input_data['site_num'] = input_data['site_num'].astype('int')
+		df = gdf.merge(input_data, on=['site_num'], how='inner')
+	print(df)
+	type_list = ['dry_ratio','warm_ratio','warm_dry_ratio']
 
 	pnw = gpd.read_file(pnw_shapefile)
 	us_bounds = gpd.read_file(us_boundary)
 	#df["B"] = df["A"].map(equiv)
 	fig, ax = plt.subplots(1, 3,figsize=(18,18))
 	#ax = ax.flatten()
+	if 'palette' in kwargs: 
+		palette = kwargs.get('palette').values()
+	else: 
+		palette = 'Reds'
 	for x in range(3):  
-		#divider = make_axes_locatable(ax[x])
-		#cax = divider.append_axes("right", size="5%", pad=0.1)
-		#cmap = 'Reds'#colors.ListedColormap(['b','g','y','r'])
-		#bounds=[0,.25,.5,.75,1]
-		#cmap = colors.ListedColormap(['b','g','y','r'])#
-		#norm = colors.BoundaryNorm(bounds, cmap)
-		divider = make_axes_locatable(ax[x])
-		cax = divider.append_axes('right', size='5%', pad=0.05)
-		hucs.plot(ax=ax[x],color='lightgray', edgecolor='black')
-		pcm=gdf.plot(column=type_list[x],ax=ax[x],legend=True,cax=cax,cmap='Reds',vmin=0,vmax=1)#,norm=norm)
-		#fig.colorbar(pcm, cax=cax, orientation='vertical')
+		minx, miny, maxx, maxy = pnw.geometry.total_bounds
 
+		#hucs.plot(ax=ax[x],color='lightgray', edgecolor='black')
+		us_bounds.plot(ax=ax[x],color='#a6a6a6',edgecolor='black')
+		pnw.plot(ax=ax[x],color='lightgray',edgecolor='black')
+		
+		if x < 2:  
+			pcm=df.plot(column=type_list[x],ax=ax[x],legend=False,cmap=palette,vmin=0,vmax=1,edgecolor='black',markersize=45)#,norm=norm)
+		else: 
+			divider = make_axes_locatable(ax[x])
+			cax = divider.append_axes('right', size='5%', pad=0.05)
+			pcm=df.plot(column=type_list[x],ax=ax[x],legend=True,cax=cax,cmap=palette,vmin=0,vmax=1,edgecolor='black',markersize=45)#,norm=norm)
 
-		#divider = make_axes_locatable(ax[x])
-		#cax = divider.append_axes("right", size="5%", pad=0.1)
-		#cbar=fig.colorbar(pcm,cax=cax)
-		#ax[x].set_clim(vmin=0, vmax=1)
+		ax[x].set_xlim(minx - 1, maxx + 1) # added/substracted value is to give some margin around total bounds
+		ax[x].set_ylim(miny - 1, maxy + 1)
 
 		if '_' in type_list[x]: 
 			drought_type=" ".join(type_list[x].split("_")).capitalize()
-			ax[x].set_title(f'Proportion of weeks classified as {drought_type} snow drought \n {year_of_interest} water year')
+			ax[x].set_title(f'{drought_type} snow drought \n {year_of_interest} water year')
 		else: 
 			ax[x].set_title(f'{type_list[x].capitalize()} snow drought \n {year_of_interest} water year')
-		for idx, row in hucs.iterrows():
-			ax[x].annotate(s=row['huc4'], xy=row['coords'],horizontalalignment='center')
+		# for idx, row in hucs.iterrows():
+		# 	ax[x].annotate(s=row['huc4'], xy=row['coords'],horizontalalignment='center')
+		
 		#add a context map
-		axins = inset_axes(ax[0], width="30%", height="40%", loc=4)#,bbox_to_anchor=(.1, .5, .5, .5),bbox_transform=ax[x].transAxes)
-		axins.tick_params(labelleft=False, labelbottom=False)
-		us_bounds.plot(ax=axins,color='darkgray', edgecolor='black')
-		hucs.plot(ax=axins,color='red', edgecolor='black')
+		# axins = inset_axes(ax[0], width="30%", height="40%", loc=4)#,bbox_to_anchor=(.1, .5, .5, .5),bbox_transform=ax[x].transAxes)
+		# axins.tick_params(labelleft=False, labelbottom=False)
+		# us_bounds.plot(ax=axins,color='darkgray', edgecolor='black')
+		#hucs.plot(ax=axins,color='red', edgecolor='black')
 
 	plt.tight_layout()
 	plt.show()
 	plt.close('all')
+
+def main(year_of_interest,season,pickles,agg_step=12,huc_level='8'): 
+	
+
+	snotel_data = pickles+f'short_term_snow_drought_{year_of_interest}_water_year_{season}_{agg_step}_day_time_step_w_all_dates'
+
+	if season == 'extended_winter': 
+		date_range = list(pd.date_range(start=f"{int(year_of_interest)-1}-11-01",end=f"{year_of_interest}-04-30"))
+		num_periods = len(date_range)/int(agg_step)
+
+	input_data = obtain_data.AcquireData(None,None,snotel_data,None,huc_level,None)	
+	short_term_snow_drought = input_data.get_snotel_data()
+
+	df = short_term_snow_drought.groupby(['station_id','huc_id']).agg({'dry': 'count','warm':'count','warm_dry':'count'}).reset_index()
+
+	df= df.groupby('huc_id').agg({'dry':'median','warm':'median','warm_dry':'median'}).reset_index()
+	#df1 = short_term_snow_drought.groupby(['station_id']).agg({'dry': 'count','warm':'count','warm_dry':'count'}).reset_index()
+
+	
+	#print(df1)
+	for column in ['dry','warm','warm_dry']: 
+		df[f'{column}_ratio'] = df[column] /num_periods
+	df.rename(columns={'station_id':'site_num'},inplace=True)
+	
+	#plot_snow_drought_ratios(df,stations_no_hucs,pnw_shapefile,us_boundary,year_of_interest)
+	return df 
+
+if __name__ == '__main__':
+   
+
+	params = sys.argv[1]
+	with open(str(params)) as f:
+		variables = json.load(f)
+		season = variables['season']
+		agg_step = variables['agg_step']
+		huc_level = variables['huc_level']
+		year_of_interest = variables['year_of_interest']
+		pickles = variables['pickles']
+		stations = variables['stations']
+		stations_no_hucs = variables['stations_no_hucs']
+		us_boundary = variables['us_boundary']
+		pnw_shapefile = variables['pnw_shapefile']
+		palette = variables['palette']
+
+	main(year_of_interest,season,pickles)

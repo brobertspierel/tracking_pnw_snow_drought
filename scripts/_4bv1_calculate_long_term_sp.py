@@ -14,7 +14,7 @@ import re
 import math 
 from scipy import stats
 from functools import reduce
-
+import _pickle as cPickle
 #class CleanOptialRSData(): 
 
 western = ['1708','1801','1710','1711','1709']
@@ -31,11 +31,11 @@ def split_basins(input_df,grouping_col,**kwargs):
 	west_df.replace(np.inf,np.nan,inplace=True)
 	east_df.replace(np.inf,np.nan,inplace=True)
 	
-	try: 
-		west_df.drop(columns=[grouping_col,'elev_mean'],inplace=True) #added the hardcoded drop of the elev col to clean up for plotting
-		east_df.drop(columns=[grouping_col,'elev_mean'],inplace=True)
-	except Exception as e: 
-		pass
+	# try: #commented out 3/24/2021 might need to uncomment for plotting  
+	# 	west_df.drop(columns=[grouping_col,'elev_mean'],inplace=True) #added the hardcoded drop of the elev col to clean up for plotting
+	# 	east_df.drop(columns=[grouping_col,'elev_mean'],inplace=True)
+	# except Exception as e: 
+	# 	pass
 		#print(e)
 	# west_df['year'] = kwargs.get('year')
 	# east_df['year'] = kwargs.get('year')
@@ -90,7 +90,8 @@ def combine_rs_snotel_annually(input_dir,season,pickles,agg_step=12,resolution=5
 	optical_files = sorted(glob.glob(input_dir+'*.csv'))
 
 	for file in optical_files: 
-		year = int(re.findall('(\d{4})-\d{2}-\d{2}', os.path.split(file)[1])[1]) #gets a list with the start and end of the water year, take the second one. expects files to be formatted a specific way from GEE 
+		year = re.findall('(\d{4})', os.path.split(file)[1])[1] #gets a list with the start and end of the water year, take the second one. expects files to be formatted a specific way from GEE 
+
 		#decide which season length to use depending on the RS aggregation type (SP or SCA)
 		if 'SP' in file: 
 			snotel_data = pickles+f'short_term_snow_drought_{year}_water_year_{season}_{agg_step}_day_time_step_w_all_dates_first_day_start'
@@ -116,7 +117,8 @@ def combine_rs_snotel_annually(input_dir,season,pickles,agg_step=12,resolution=5
 			#combine the remote sensing and snotel data using the snotel dates of snow droughts to extract rs data 
 			merged=merge_dfs(short_term_snow_drought,optical_data,kwargs.get('drought_type')) #snotel_data,rs_data,drought_type
 		else: 
-			print('Calculating total with no snow droughts')
+			pass
+			#print('Calculating total with no snow droughts')
 		#output = split_dfs_within_winter_season
 		try: 
 			split_dfs=split_basins(merged,f'huc{huc_level}',year=year) #returns the merged df split into two dfs, west (0) and east (1)
@@ -179,7 +181,7 @@ def aggregate_dfs(input_dict,index,region,drought_type,sp=False):
 
 	return output
 
-def plot_sp_sca(dry,warm,warm_dry,total,ylabel,palette,nrows,ncols,sp=False): 
+def plot_sp_sca(dry,warm,warm_dry,total,ylabel,palette,nrows,ncols,fig_dir,stats_output=None,sp=False,show=True): 
 
 	#plot the SCA data 
 	font = {'family' : 'normal',
@@ -188,44 +190,59 @@ def plot_sp_sca(dry,warm,warm_dry,total,ylabel,palette,nrows,ncols,sp=False):
 	
 	plt.rc('font', **font)
 	#if ncols > 1: 
-	fig,axes = plt.subplots(nrows=nrows,ncols=ncols,sharex='col',sharey='row',squeeze=False) #2,3 for nrows,ncols for sca 
+	fig,axes = plt.subplots(nrows=nrows,ncols=ncols,sharex='col',sharey='row',squeeze=False,figsize=(13,8)) #2,3 for nrows,ncols for sca 
 	# else: 
 	# 	fig,axes = plt.subplots(nrows,sharex=True,sharey='row') #2,3 for nrows,ncols for sca 
 	width = 0.8
 	for i in range(nrows): 
 		for j in range(ncols): 
-			#axes[i][j].grid()
 			print('indices ',i,' ',j)
-			dry_west = aggregate_dfs(dry,j,'west','dry_',sp)
-			dry_east = aggregate_dfs(dry,j,'east','dry_',sp)
-			warm_west = aggregate_dfs(warm,j,'west','warm_',sp)
-			warm_east = aggregate_dfs(warm,j,'east','warm_',sp)
-			warm_dry_west = aggregate_dfs(warm_dry,j,'west','warm_dry_',sp)
-			warm_dry_east = aggregate_dfs(warm_dry,j,'east','warm_dry_',sp)
+			
+			dfs = [dry,warm,warm_dry]
+			types = ['dry_','warm_','warm_dry_']
+			west_dfs = [aggregate_dfs(df,j,'west',drought_type,sp) for df,drought_type in zip(dfs,types)]
+			east_dfs = [aggregate_dfs(df,j,'east',drought_type,sp) for df,drought_type in zip(dfs,types)]
+
 			total_west = aggregate_dfs(total,j,'west','',sp)
 			total_east = aggregate_dfs(total,j,'east','',sp)
-			# print('total')
-			# print(total_west)
-			# print(total_east)
-			# print('dry')
-			# print(dry_west)
-			# print(dry_east)
-			# print('warm')
-			# print(warm_west)
-			# print(warm_east)
-			# print('warm dry')
-			# print(warm_dry_west)
-			# print(warm_dry_east)
 			
-			west = reduce(lambda x,y: pd.merge(x,y, on='year', how='outer'), [dry_west, warm_west, warm_dry_west]).sort_values('year')
-			east = reduce(lambda x,y: pd.merge(x,y, on='year', how='outer'), [dry_east, warm_east, warm_dry_east]).sort_values('year')
-			
+			west = reduce(lambda x,y: pd.merge(x,y, on='year', how='outer'), west_dfs).sort_values('year')
+			east = reduce(lambda x,y: pd.merge(x,y, on='year', how='outer'), east_dfs).sort_values('year') #[dry_east, warm_east, warm_dry_east]
+			#print(west)
+			#print(east)
 			# west = get_anom_col(west,'NDSI_Snow_Cover')
 			# east = get_anom_col(east,'NDSI_Snow_Cover')
 
+			#get stats outputs as input 
+			if stats_output: 
+				if sp: 
+					stats_file = glob.glob(stats_output+f'*SP_time_{j}_results.pickle')[0]
+					print('processing sp')
+				else: 
+					stats_file = glob.glob(stats_output+f'*SCA_time_{j}_results.pickle')[0]	
+				
+				with open(stats_file, "rb") as input_file:
+					stats_input = cPickle.load(input_file)
+
 			if i < 1: #plot the west region on the top row 
-				axes[i][j].grid(axis='y')
-				west.plot.bar(x='year',ax=axes[i][j],legend=False,color=palette.values(),width=width,stacked=True)#,stacked=False)
+				axes[i][j].set_axisbelow(True)
+				#plot it 
+				west.plot.bar(x='year',ax=axes[i][j],legend=False,color=palette.values(),width=width,stacked=True)#,grid={'color':'gray','linestyle':'-','axis':'y'}) #grid(color='r', linestyle='-', linewidth=2)
+				#add grid lines to the y axis 
+				axes[i][j].yaxis.grid(color='gray', linestyle='dashed',alpha=0.5)
+				#add the sig levels 
+				west['stats_input'] = west['year'].map(stats_input['west'])
+				
+				#get info about the bars to place the sig levels below 
+				rects = axes[i][j].patches
+		
+				for rect,sig in zip(rects,list(west['stats_input'])):
+					if sig > 0.0: 
+						height = rect.get_height()
+						axes[i][j].text(rect.get_x() + rect.get_width() / 2, -.01, '*',
+						ha='center',va='top')
+
+				#print the total on another axis 
 				ax1=axes[i][j].twiny()
 				total_west.plot.line(x='year',y='NDSI_Snow_Cover',ax=ax1,color='black',linewidth=2,linestyle='--',legend=False)#axes[i][j])
 				ax1.xaxis.get_major_formatter().set_useOffset(False)
@@ -237,8 +254,20 @@ def plot_sp_sca(dry,warm,warm_dry,total,ylabel,palette,nrows,ncols,sp=False):
 
 				
 			else: #plot the east region on the bottom row 
-				axes[i][j].grid(axis='y',alpha=0.5)
-				east.plot.bar(x='year',ax=axes[i][j],legend=False,color=palette.values(),width=width,stacked=True)#,stacked=False)
+				axes[i][j].set_axisbelow(True)
+				east.plot.bar(x='year',ax=axes[i][j],legend=False,color=palette.values(),width=width,stacked=True)
+				axes[i][j].yaxis.grid(color='gray', linestyle='dashed',alpha=0.5)
+				east['stats_input'] = east['year'].map(stats_input['east'])
+				print(east)
+				#get info about the bars to place the sig levels below 
+				rects = axes[i][j].patches
+		
+				for rect,sig in zip(rects,list(east['stats_input'])):
+					if sig > 0.0: 
+						height = rect.get_height()
+						axes[i][j].text(rect.get_x() + rect.get_width() / 2, -.01, '*',
+						ha='center',va='top')
+					
 				ax2=axes[i][j].twiny()
 				total_east.plot.line(x='year',y='NDSI_Snow_Cover',ax=ax2,color='black',linewidth=2,linestyle='--',legend=False)#axes[i][j])
 				ax2.xaxis.get_major_formatter().set_useOffset(False)
@@ -249,9 +278,12 @@ def plot_sp_sca(dry,warm,warm_dry,total,ylabel,palette,nrows,ncols,sp=False):
 				ax2.set_xlabel(' ')
 			#set titles and legend
 			axes[i][j].set_xlabel(' ')
-			axes[i][j].set_ylabel(ylabel)
+			
+			if ylabel: 
+				axes[i][j].set_ylabel(ylabel)
 			
 	palette = {k.title():v for k,v in palette.items()}
+
 	if not sp: 
 		axes[0][2].legend(palette)
 		axes[0][0].set_title('Nov-Dec')
@@ -264,56 +296,53 @@ def plot_sp_sca(dry,warm,warm_dry,total,ylabel,palette,nrows,ncols,sp=False):
 	#add region labels 
 	axes[0][0].annotate('a)',xy=(0.05,0.85),xycoords='axes fraction')
 	axes[1][0].annotate('b)',xy=(0.05,0.85),xycoords='axes fraction')
-	plt.show()
-	plt.close('all')
-	return None 
+	
+	if show: 
+		plt.show()
+		plt.close('all')
+	else:
+		if not sp:  
+			plt.savefig(fig_dir+'SCA_time_series_by_drought_max_extent_w_sig_notation.png',dpi=350)
+		else: 
+			plt.savefig(fig_dir+'SP_time_series_by_drought_min_median_w_sig_notation.png',dpi=350)
+	return west,east 
 
-def main():
+def main(sp_data,sca_data,pickles,season,palette,huc_level='8',**kwargs):
 	"""
 	Plot the long term snow drought types and trends. 
 	"""
+	dry_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,drought_type='dry',sp=True),sp=True)
+	warm_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,drought_type='warm',sp=True),sp=True)
+	warm_dry_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,drought_type='warm_dry',sp=True),sp=True)
+	total_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,sp=True,total=True),sp=True)
+
+
+	dry=generate_output(combine_rs_snotel_annually(sca_data,season,pickles,drought_type='dry'))
+	warm=generate_output(combine_rs_snotel_annually(sca_data,season,pickles,drought_type='warm'))
+	warm_dry=generate_output(combine_rs_snotel_annually(sca_data,season,pickles,drought_type='warm_dry')) 
+	total = generate_output(combine_rs_snotel_annually(sca_data,season,pickles,total=True)) 
 	
+	#sca_plot=plot_sp_sca(dry,warm,warm_dry,total,'SCA max extent',palette,2,3,fig_dir=kwargs.get('fig_dir'),stats_output=kwargs.get('stats_output')) #dry,warm,warm_dry,total,ylabel,palette,nrows,ncols,stats_output=None,sp=False,show=True,**kwargs
+	
+	sp_plot=plot_sp_sca(dry_sp,warm_sp,warm_dry_sp,total_sp,'Snow persistence',palette,2,1,fig_dir=kwargs.get('fig_dir'),stats_output=kwargs.get('stats_output'),sp=True)
+
+if __name__ == '__main__':
+
 	params = sys.argv[1]
 	with open(str(params)) as f:
 		variables = json.load(f)
-		
+
 		#construct variables from param file
 		sp_data = variables['sp_data']
 		sca_data = variables['sca_data']
-		csv_dir = variables['csv_dir']	
-		huc_level = variables['huc_level']
-		resolution = variables['resolution']
 		pickles = variables['pickles']
 		season = variables['season']
 		palette = variables['palette'] #"no_drought":"#cbbdb1",
-		
-		
+		stats = variables['stats']
+		fig_dir = variables['fig_dir']
 		#set a few script specific user params
 		plotting_param = 'Snow persistence' #'SCA percent of total'
 		#plot_func = 'quartile'
 		elev_stat = 'elev_mean'
-	
-		dry_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,drought_type='dry',sp=True),sp=True)
-		warm_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,drought_type='warm',sp=True),sp=True)
-		warm_dry_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,drought_type='warm_dry',sp=True),sp=True)
-		total_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,sp=True,total=True),sp=True)
 
-
-		dry=generate_output(combine_rs_snotel_annually(sca_data,season,pickles,drought_type='dry'))
-		warm=generate_output(combine_rs_snotel_annually(sca_data,season,pickles,drought_type='warm'))
-		warm_dry=generate_output(combine_rs_snotel_annually(sca_data,season,pickles,drought_type='warm_dry')) 
-		total = generate_output(combine_rs_snotel_annually(sca_data,season,pickles,total=True)) 
-		# print('total')
-		# print(total)
-		# print('dry')
-		# print(dry)
-		# print('warm')
-		# print(warm)
-		# print('warm_dry')
-		# print(warm_dry)
-		#sca_plot=plot_sp_sca(dry,warm,warm_dry,total,plotting_param,palette,2,3)
-		
-		sp_plot=plot_sp_sca(dry_sp,warm_sp,warm_dry_sp,total_sp,plotting_param,palette,2,1,sp=True)
-
-if __name__ == '__main__':
-    main()
+	main(sp_data,sca_data,pickles,season,palette,stats_output=stats,fig_dir=fig_dir)

@@ -210,8 +210,9 @@ def main():
 		#get the rs data for the time periods of interest for a snow drought type 
 		#dry_optical=dry_combined.groupby('huc'+huc_level)['ndsi_pct_change'].mean()
 		dry_combined.rename(columns={'wet_snow_by_area':'dry_WSCA'},inplace=True)
-		dry_sar = dry_combined.groupby('huc'+huc_level)['dry_WSCA',elev_stat].median() #changed col from pct change to filter 2/1/2021
-	
+		dry_combined = dry_combined.sort_values('dry_WSCA').drop_duplicates(subset=[f'huc{huc_level}', 'date'], keep='first')
+
+		#dry_sar = dry_combined.groupby('huc'+huc_level)['dry_WSCA',elev_stat].median() #changed col from pct change to filter 2/1/2021
 		#then do warm 
 		warm_combined = create_snow_drought_subset(short_term_snow_drought,'warm',huc_level)
 		#merge em 
@@ -219,7 +220,9 @@ def main():
 		#get the rs data for the time periods of interest for a snow drought type 
 		#warm_optical=warm_combined.groupby('huc'+huc_level)['ndsi_pct_change'].min() 
 		warm_combined.rename(columns={'wet_snow_by_area':'warm_WSCA'},inplace=True)
-		warm_sar = warm_combined.groupby('huc'+huc_level)['warm_WSCA',elev_stat].median()
+		warm_combined = warm_combined.sort_values('warm_WSCA').drop_duplicates(subset=[f'huc{huc_level}', 'date'], keep='first')
+
+		#warm_sar = warm_combined.groupby('huc'+huc_level)['warm_WSCA',elev_stat].median()
 		
 		#then do warm/dry
 		warm_dry_combined = create_snow_drought_subset(short_term_snow_drought,'warm_dry',huc_level)
@@ -228,147 +231,207 @@ def main():
 		#get the rs data for the time periods of interest for a snow drought type 
 		#warm_dry_optical=warm_dry_combined.groupby('huc'+huc_level)['ndsi_pct_change'].sum()
 		warm_dry_combined.rename(columns={'wet_snow_by_area':'warm_dry_WSCA'},inplace=True)
-		warm_dry_sar = warm_dry_combined.groupby('huc'+huc_level)['warm_dry_WSCA',elev_stat].median()
+		warm_dry_combined = warm_dry_combined.sort_values('warm_dry_WSCA').drop_duplicates(subset=[f'huc{huc_level}', 'date'], keep='first')
+
+		print(warm_dry_combined)
+		#warm_dry_sar = warm_dry_combined.groupby('huc'+huc_level)['warm_dry_WSCA',elev_stat].median()
 
 		#try making a df of time steps that DO NOT have snow droughts for comparing
 		no_snow_drought = create_snow_drought_subset(short_term_snow_drought,'date',huc_level)
 		no_drought_combined=no_snow_drought.merge(rs_df, on=['date','huc'+huc_level],how='inner')
 
 		no_drought_combined.rename(columns={'wet_snow_by_area':'no_drought_WSCA'},inplace=True)
-		no_drought_sar = no_drought_combined.groupby('huc'+huc_level)['no_drought_WSCA'].median()
+		no_drought_combined = warm_dry_combined.sort_values('warm_dry_WSCA').drop_duplicates(subset=[f'huc{huc_level}', 'date'], keep='first')
+
+		#no_drought_sar = no_drought_combined.groupby('huc'+huc_level)['no_drought_WSCA'].median()
 		#print(no_drought_sar)
 		#print('no drought sar', no_drought_sar.shape)
 		
 
-		#plot it 
-		if plot_func.lower() == 'quartile': 
-			#dfs = [dry_sar.reset_index(),warm_sar.reset_index(),warm_dry_sar.reset_index()]
-			dfs = dry_sar.reset_index().merge(warm_sar.reset_index(),on=['huc'+huc_level],how='outer')
-			dfs = dfs.merge(warm_dry_sar.reset_index(),on=['huc'+huc_level],how='outer')
-			dfs.drop(columns={f'{elev_stat}_x',f'{elev_stat}_y'},inplace=True)
-			print('dfs shape',dfs.shape)
+		# #plot it 
+		# if plot_func.lower() == 'quartile': 
+		# 	#dfs = [dry_sar.reset_index(),warm_sar.reset_index(),warm_dry_sar.reset_index()]
+		# 	dfs = dry_sar.reset_index().merge(warm_sar.reset_index(),on=['huc'+huc_level],how='outer')
+		# 	dfs = dfs.merge(warm_dry_sar.reset_index(),on=['huc'+huc_level],how='outer')
+		# 	dfs.drop(columns={f'{elev_stat}_x',f'{elev_stat}_y'},inplace=True)
+		# 	print('dfs shape',dfs.shape)
 			
-			dfs = dfs.merge(no_drought_sar.reset_index(),on=['huc'+huc_level],how='outer')
+		# 	dfs = dfs.merge(no_drought_sar.reset_index(),on=['huc'+huc_level],how='outer')
 		
-			#do a little bit of cleaning
-			dfs.replace(np.inf,np.nan,inplace=True)
-			#dfs[['dry_WSCA','warm_WSCA','warm_dry_WSCA','no_drought_WSCA']]>=1 = 1 #=dfs[dfs['dry_WSCA','warm_WSCA','warm_dry_WSCA','no_drought_WSCA']>=1,]
+		# 	#do a little bit of cleaning
+		# 	dfs.replace(np.inf,np.nan,inplace=True)
+		# 	#dfs[['dry_WSCA','warm_WSCA','warm_dry_WSCA','no_drought_WSCA']]>=1 = 1 #=dfs[dfs['dry_WSCA','warm_WSCA','warm_dry_WSCA','no_drought_WSCA']>=1,]
 			
-			print('dfs look like: ',dfs)
-			#anywhere wet snow exceeeds snow covered area ie value is greater than 1, set it to 1
-			# dfs['dry_WSCA'] = dfs['dry_WSCA']
-			#dfs.loc[dfs['dry_WSCA','warm_WSCA','warm_dry_WSCA'] > 1] = 1  
-			dfs.loc[dfs['dry_WSCA'] > 1,'dry_WSCA'] = np.nan
-			dfs.loc[dfs['warm_WSCA'] > 1,'warm_WSCA'] = np.nan
-			dfs.loc[dfs['warm_dry_WSCA'] > 1,'warm_dry_WSCA'] = np.nan  
-			dfs.loc[dfs['no_drought_WSCA'] > 1,'no_drought_WSCA'] = np.nan
-			#df.loc[df.ID == 103, ['FirstName', 'LastName']] = 'Matt', 'Jones'
+		# 	print('dfs look like: ',dfs)
+		# 	#anywhere wet snow exceeeds snow covered area ie value is greater than 1, set it to 1
+		# 	# dfs['dry_WSCA'] = dfs['dry_WSCA']
+		# 	#dfs.loc[dfs['dry_WSCA','warm_WSCA','warm_dry_WSCA'] > 1] = 1  
+		# 	dfs.loc[dfs['dry_WSCA'] > 1,'dry_WSCA'] = np.nan
+		# 	dfs.loc[dfs['warm_WSCA'] > 1,'warm_WSCA'] = np.nan
+		# 	dfs.loc[dfs['warm_dry_WSCA'] > 1,'warm_dry_WSCA'] = np.nan  
+		# 	dfs.loc[dfs['no_drought_WSCA'] > 1,'no_drought_WSCA'] = np.nan
+		# 	#df.loc[df.ID == 103, ['FirstName', 'LastName']] = 'Matt', 'Jones'
 
-			print('dfs now look like: ', dfs)
-			print(dfs.count()) 
-			#dfs[['dry_WSCA','warm_WSCA','warm_dry_WSCA','no_drought_WSCA']] = np.where(dfs[['dry_WSCA','warm_WSCA','warm_dry_WSCA','no_drought_WSCA']] >= 1, 1,dfs)
+		# 	print('dfs now look like: ', dfs)
+		# 	print(dfs.count()) 
+		# 	#dfs[['dry_WSCA','warm_WSCA','warm_dry_WSCA','no_drought_WSCA']] = np.where(dfs[['dry_WSCA','warm_WSCA','warm_dry_WSCA','no_drought_WSCA']] >= 1, 1,dfs)
 
-			# print(dfs.columns)
-			# pd.set_option("display.max_rows", None, "display.max_columns", None)
-			# print(dfs)
-			# print(dfs.mean())
-			#dfs.drop(columns=['elev_max_x'],inplace=True)
-			#dfs['elev_max'] = dfs['elev_max_y'].astype('int')
-			plot_quantiles(dfs,elev_stat,['dry_WSCA','warm_WSCA','warm_dry_WSCA','no_drought_WSCA'],'huc'+huc_level,'Wet snow covered area (sq km)',year_of_interest,palette) #amended 2/1/2021
+		# 	# print(dfs.columns)
+		# 	# pd.set_option("display.max_rows", None, "display.max_columns", None)
+		# 	# print(dfs)
+		# 	# print(dfs.mean())
+		# 	#dfs.drop(columns=['elev_max_x'],inplace=True)
+		# 	#dfs['elev_max'] = dfs['elev_max_y'].astype('int')
+		# 	plot_quantiles(dfs,elev_stat,['dry_WSCA','warm_WSCA','warm_dry_WSCA','no_drought_WSCA'],'huc'+huc_level,'Wet snow covered area (sq km)',year_of_interest,palette) #amended 2/1/2021
 		
-		elif plot_func.lower() == 'combined': 
+		# elif plot_func.lower() == 'combined': 
 
-			#read in shapefiles for mapping 
-			hucs_shp = gpd.read_file(huc_shapefile)
-			us_bounds = gpd.read_file(us_boundary)
+		# 	#read in shapefiles for mapping 
+		# 	hucs_shp = gpd.read_file(huc_shapefile)
+		# 	us_bounds = gpd.read_file(us_boundary)
 
-			#make sure shapefile merging col matches rs data 
-			hucs_shp['huc8'] = hucs_shp['huc8'].astype('int32')
+		# 	#make sure shapefile merging col matches rs data 
+		# 	hucs_shp['huc8'] = hucs_shp['huc8'].astype('int32')
 			
-			#get the droughts data 
-			hucs_shp_drought = hucs_shp.merge(warm_dry_optical,how='inner',on='huc'+huc_level)
-			hucs_shp_drought = hucs_shp_drought.merge(warm_dry_sar,how='inner',on='huc'+huc_level)
-			hucs_shp_drought = hucs_shp_drought.merge(warm_dry_ratio,how='inner',on='huc'+huc_level)
-			#hucs_shp_drought['sar_pct_change'] = hucs_shp_drought['sar_pct_change'].replace(np.inf, np.nan)
-			print(hucs_shp_drought)		
+		# 	#get the droughts data 
+		# 	hucs_shp_drought = hucs_shp.merge(warm_dry_optical,how='inner',on='huc'+huc_level)
+		# 	hucs_shp_drought = hucs_shp_drought.merge(warm_dry_sar,how='inner',on='huc'+huc_level)
+		# 	hucs_shp_drought = hucs_shp_drought.merge(warm_dry_ratio,how='inner',on='huc'+huc_level)
+		# 	#hucs_shp_drought['sar_pct_change'] = hucs_shp_drought['sar_pct_change'].replace(np.inf, np.nan)
+		# 	print(hucs_shp_drought)		
 
-			#get the no drought rs data 
-			hucs_shp_no_drought = hucs_shp.merge(no_drought_optical,how='inner',on='huc8')
-			hucs_shp_no_drought = hucs_shp_no_drought.merge(no_drought_sar,how='inner',on='huc8')
-			hucs_shp_no_drought = hucs_shp_no_drought.merge(no_drought_ratio,how='inner',on='huc8')
+		# 	#get the no drought rs data 
+		# 	hucs_shp_no_drought = hucs_shp.merge(no_drought_optical,how='inner',on='huc8')
+		# 	hucs_shp_no_drought = hucs_shp_no_drought.merge(no_drought_sar,how='inner',on='huc8')
+		# 	hucs_shp_no_drought = hucs_shp_no_drought.merge(no_drought_ratio,how='inner',on='huc8')
 			
 
-			#print(hucs_shp_drought.shape)
-			#print(hucs_shp_no_drought.shape)
-			#get the basin bounds for mapping 
-			minx, miny, maxx, maxy = hucs_shp.geometry.total_bounds
+		# 	#print(hucs_shp_drought.shape)
+		# 	#print(hucs_shp_no_drought.shape)
+		# 	#get the basin bounds for mapping 
+		# 	minx, miny, maxx, maxy = hucs_shp.geometry.total_bounds
 
-			fig,(ax1,ax2) = plt.subplots(2)
-			us_bounds.plot(ax=ax1,color='white', edgecolor='black')
+		# 	fig,(ax1,ax2) = plt.subplots(2)
+		# 	us_bounds.plot(ax=ax1,color='white', edgecolor='black')
 
-			# #make colorbar axes 
-			divider = make_axes_locatable(ax1)
-			cax = divider.append_axes('right', size='5%', pad=0.05)
-			hucs_shp_drought.plot(ax=ax1,column='filter',vmin=hucs_shp_drought['filter'].min(),vmax=hucs_shp_drought['filter'].max(),legend=True,cax=cax)
+		# 	# #make colorbar axes 
+		# 	divider = make_axes_locatable(ax1)
+		# 	cax = divider.append_axes('right', size='5%', pad=0.05)
+		# 	hucs_shp_drought.plot(ax=ax1,column='filter',vmin=hucs_shp_drought['filter'].min(),vmax=hucs_shp_drought['filter'].max(),legend=True,cax=cax)
 			
-			# fig,((ax1,ax2),(ax3,ax4)) = plt.subplots(nrows=2,ncols=2,figsize=(15,15))
-			# #subset = hucs_shp_no_drought[hucs_shp_no_drought['sar_pct_change']]
-			# #plt.scatter(hucs_shp_drought['sar_pct_change'],hucs_shp_drought['ndsi_pct_change'])
-			# #plot US bounds- need to add Canada and states/provinces 
-			# us_bounds.plot(ax=ax1,color='white', edgecolor='black')
+		# 	# fig,((ax1,ax2),(ax3,ax4)) = plt.subplots(nrows=2,ncols=2,figsize=(15,15))
+		# 	# #subset = hucs_shp_no_drought[hucs_shp_no_drought['sar_pct_change']]
+		# 	# #plt.scatter(hucs_shp_drought['sar_pct_change'],hucs_shp_drought['ndsi_pct_change'])
+		# 	# #plot US bounds- need to add Canada and states/provinces 
+		# 	# us_bounds.plot(ax=ax1,color='white', edgecolor='black')
 			
-			# #need to change this to make background color for the hucs 
-			# #hucs_shp_drought.plot(ax=ax1,color='gray',edgecolor='darkgray')
+		# 	# #need to change this to make background color for the hucs 
+		# 	# #hucs_shp_drought.plot(ax=ax1,color='gray',edgecolor='darkgray')
 			
-			# #make colorbar axes 
-			# divider = make_axes_locatable(ax1)
-			# cax = divider.append_axes('right', size='5%', pad=0.05)
+		# 	# #make colorbar axes 
+		# 	# divider = make_axes_locatable(ax1)
+		# 	# cax = divider.append_axes('right', size='5%', pad=0.05)
 			
-			# #plot it 
-			# hucs_shp_drought.plot(ax=ax1,column='sar_pct_change',vmin=hucs_shp_drought['sar_pct_change'].min(),vmax=hucs_shp_drought['sar_pct_change'].max(),legend=True,cax=cax)#,cmap=cmap,vmin=1980,vmax=2019)#, column='Value1')
+		# 	# #plot it 
+		# 	# hucs_shp_drought.plot(ax=ax1,column='sar_pct_change',vmin=hucs_shp_drought['sar_pct_change'].min(),vmax=hucs_shp_drought['sar_pct_change'].max(),legend=True,cax=cax)#,cmap=cmap,vmin=1980,vmax=2019)#, column='Value1')
 			
-			# #repeat 
-			# ax1.set_title(f'{year_of_interest} mean warm/dry sar change in wet snow area')
-			ax1.set_xlim(minx - 1, maxx + 1) # added/substracted value is to give some margin around total bounds
-			ax1.set_ylim(miny - 1, maxy + 1)
+		# 	# #repeat 
+		# 	# ax1.set_title(f'{year_of_interest} mean warm/dry sar change in wet snow area')
+		# 	ax1.set_xlim(minx - 1, maxx + 1) # added/substracted value is to give some margin around total bounds
+		# 	ax1.set_ylim(miny - 1, maxy + 1)
 
-			# us_bounds.plot(ax=ax2,color='white', edgecolor='black')
-			# #hucs_shp.plot(ax=ax2,color='gray',edgecolor='darkgray')
-			divider = make_axes_locatable(ax2)
-			cax = divider.append_axes('right', size='5%', pad=0.05)
-			hucs_shp_no_drought.plot(ax=ax2,column='filter',vmin=hucs_shp_drought['filter'].min(),vmax=hucs_shp_drought['filter'].max(),legend=True,cax=cax)
+		# 	# us_bounds.plot(ax=ax2,color='white', edgecolor='black')
+		# 	# #hucs_shp.plot(ax=ax2,color='gray',edgecolor='darkgray')
+		# 	divider = make_axes_locatable(ax2)
+		# 	cax = divider.append_axes('right', size='5%', pad=0.05)
+		# 	hucs_shp_no_drought.plot(ax=ax2,column='filter',vmin=hucs_shp_drought['filter'].min(),vmax=hucs_shp_drought['filter'].max(),legend=True,cax=cax)
 
-			# hucs_shp_drought.plot(ax=ax2,column='ndsi_pct_change',vmin=hucs_shp_drought['ndsi_pct_change'].min(),vmax=hucs_shp_drought['ndsi_pct_change'].max(),legend=True,cax=cax)#,cmap=cmap,vmin=1980,vmax=2019)#, column='Value1')
-			# ax2.set_title(f'{year_of_interest} mean warm/dry optical change in SP')
-			ax2.set_xlim(minx - 1, maxx + 1) # added/substracted value is to give some margin around total bounds
-			ax2.set_ylim(miny - 1, maxy + 1)
+		# 	# hucs_shp_drought.plot(ax=ax2,column='ndsi_pct_change',vmin=hucs_shp_drought['ndsi_pct_change'].min(),vmax=hucs_shp_drought['ndsi_pct_change'].max(),legend=True,cax=cax)#,cmap=cmap,vmin=1980,vmax=2019)#, column='Value1')
+		# 	# ax2.set_title(f'{year_of_interest} mean warm/dry optical change in SP')
+		# 	ax2.set_xlim(minx - 1, maxx + 1) # added/substracted value is to give some margin around total bounds
+		# 	ax2.set_ylim(miny - 1, maxy + 1)
 			
-			# us_bounds.plot(ax=ax3,color='white', edgecolor='black')
-			# #hucs_shp.plot(ax=ax3,color='gray',edgecolor='darkgray')
-			# divider = make_axes_locatable(ax3)
-			# cax = divider.append_axes('right', size='5%', pad=0.05)
-			# hucs_shp_no_drought.plot(ax=ax3,column='sar_pct_change',vmin=hucs_shp_drought['sar_pct_change'].min(),vmax=hucs_shp_drought['sar_pct_change'].max(),legend=True,cax=cax)#,cmap=cmap,vmin=1980,vmax=2019)#, column='Value1')
-			# ax3.set_title(f'{year_of_interest} mean no drought sar change in SP')
-			# ax3.set_xlim(minx - 1, maxx + 1) # added/substracted value is to give some margin around total bounds
-			# ax3.set_ylim(miny - 1, maxy + 1)
+		# 	# us_bounds.plot(ax=ax3,color='white', edgecolor='black')
+		# 	# #hucs_shp.plot(ax=ax3,color='gray',edgecolor='darkgray')
+		# 	# divider = make_axes_locatable(ax3)
+		# 	# cax = divider.append_axes('right', size='5%', pad=0.05)
+		# 	# hucs_shp_no_drought.plot(ax=ax3,column='sar_pct_change',vmin=hucs_shp_drought['sar_pct_change'].min(),vmax=hucs_shp_drought['sar_pct_change'].max(),legend=True,cax=cax)#,cmap=cmap,vmin=1980,vmax=2019)#, column='Value1')
+		# 	# ax3.set_title(f'{year_of_interest} mean no drought sar change in SP')
+		# 	# ax3.set_xlim(minx - 1, maxx + 1) # added/substracted value is to give some margin around total bounds
+		# 	# ax3.set_ylim(miny - 1, maxy + 1)
 
-			# us_bounds.plot(ax=ax4,color='white', edgecolor='black')
-			# #hucs_shp.plot(ax=ax4,color='gray',edgecolor='darkgray')
-			# divider = make_axes_locatable(ax4)
-			# cax = divider.append_axes('right', size='5%', pad=0.05)
-			# hucs_shp_no_drought.plot(ax=ax4,column='ndsi_pct_change',vmin=hucs_shp_drought['ndsi_pct_change'].min(),vmax=hucs_shp_drought['ndsi_pct_change'].max(),legend=True,cax=cax)#,cmap=cmap,vmin=1980,vmax=2019)#, column='Value1')
-			# ax4.set_title(f'{year_of_interest} mean no drought optical change in SP')
-			# ax4.set_xlim(minx - 1, maxx + 1) # added/substracted value is to give some margin around total bounds
-			# ax4.set_ylim(miny - 1, maxy + 1)
+		# 	# us_bounds.plot(ax=ax4,color='white', edgecolor='black')
+		# 	# #hucs_shp.plot(ax=ax4,color='gray',edgecolor='darkgray')
+		# 	# divider = make_axes_locatable(ax4)
+		# 	# cax = divider.append_axes('right', size='5%', pad=0.05)
+		# 	# hucs_shp_no_drought.plot(ax=ax4,column='ndsi_pct_change',vmin=hucs_shp_drought['ndsi_pct_change'].min(),vmax=hucs_shp_drought['ndsi_pct_change'].max(),legend=True,cax=cax)#,cmap=cmap,vmin=1980,vmax=2019)#, column='Value1')
+		# 	# ax4.set_title(f'{year_of_interest} mean no drought optical change in SP')
+		# 	# ax4.set_xlim(minx - 1, maxx + 1) # added/substracted value is to give some margin around total bounds
+		# 	# ax4.set_ylim(miny - 1, maxy + 1)
 
 
-			plt.tight_layout()
-			plt.show()
-			plt.close('all')
+		# 	plt.tight_layout()
+		# 	plt.show()
+		# 	plt.close('all')
 
 if __name__ == '__main__':
     main()
 
+#working 
+# sentinel_data.drop(columns=['elev_min','elev_mean','elev_max'],inplace=True)
+# 		rs_df=rs_funcs.merge_remote_sensing_data(optical_data,sentinel_data)
+# 		#remove snow persistence values lower than 20% as per (Saavedra et al)
+# 		if 'SP' in optical_csv_dir: 
+# 			rs_df = rs_df.loc[rs_df['NDSI_Snow_Cover']>= 0.2]
+# 		else: 
+# 			pass
+		
+# 		rs_df['wet_snow_by_area'] = rs_df['filter']/rs_df['NDSI_Snow_Cover'] #calculate wet snow as fraction of snow covered area
+		
+# 		#make sure that the cols used for merging are homogeneous in type 
+# 		rs_df['huc8'] = pd.to_numeric(rs_df['huc'+huc_level])
+# 		rs_df['date'] = convert_date(rs_df,'date')
+
+		
+		
+# 		#create the different snow drought type dfs 
+
+# 		#do dry first 
+# 		dry_combined = create_snow_drought_subset(short_term_snow_drought,'dry',huc_level)
+# 		#merge em 
+# 		dry_combined=dry_combined.merge(rs_df, on=['date','huc'+huc_level], how='inner') #changed rs_df to sentinel data 2/1/2021 to accommodate missing modis data temporarily 
+# 		#get the rs data for the time periods of interest for a snow drought type 
+# 		#dry_optical=dry_combined.groupby('huc'+huc_level)['ndsi_pct_change'].mean()
+# 		dry_combined.rename(columns={'wet_snow_by_area':'dry_WSCA'},inplace=True)
+
+# 		dry_sar = dry_combined.groupby('huc'+huc_level)['dry_WSCA',elev_stat].median() #changed col from pct change to filter 2/1/2021
+# 		#then do warm 
+# 		warm_combined = create_snow_drought_subset(short_term_snow_drought,'warm',huc_level)
+# 		#merge em 
+# 		warm_combined=warm_combined.merge(rs_df, on=['date','huc'+huc_level], how='inner')
+# 		#get the rs data for the time periods of interest for a snow drought type 
+# 		#warm_optical=warm_combined.groupby('huc'+huc_level)['ndsi_pct_change'].min() 
+# 		warm_combined.rename(columns={'wet_snow_by_area':'warm_WSCA'},inplace=True)
+# 		warm_sar = warm_combined.groupby('huc'+huc_level)['warm_WSCA',elev_stat].median()
+		
+# 		#then do warm/dry
+# 		warm_dry_combined = create_snow_drought_subset(short_term_snow_drought,'warm_dry',huc_level)
+# 		#merge em 
+# 		warm_dry_combined=warm_dry_combined.merge(rs_df, on=['date','huc'+huc_level], how='inner')
+# 		#get the rs data for the time periods of interest for a snow drought type 
+# 		#warm_dry_optical=warm_dry_combined.groupby('huc'+huc_level)['ndsi_pct_change'].sum()
+# 		warm_dry_combined.rename(columns={'wet_snow_by_area':'warm_dry_WSCA'},inplace=True)
+# 		warm_dry_sar = warm_dry_combined.groupby('huc'+huc_level)['warm_dry_WSCA',elev_stat].median()
+
+# 		#try making a df of time steps that DO NOT have snow droughts for comparing
+# 		no_snow_drought = create_snow_drought_subset(short_term_snow_drought,'date',huc_level)
+# 		no_drought_combined=no_snow_drought.merge(rs_df, on=['date','huc'+huc_level],how='inner')
+
+# 		no_drought_combined.rename(columns={'wet_snow_by_area':'no_drought_WSCA'},inplace=True)
+# 		no_drought_sar = no_drought_combined.groupby('huc'+huc_level)['no_drought_WSCA'].median()
+# 		#print(no_drought_sar)
+# 		#print('no drought sar', no_drought_sar.shape)
+		
 
 # fig,(ax1,ax2,ax3,ax4) = plt.subplots(ncols=2,figsize=(15,15))
 # 		us_bounds.plot(ax=ax1,color='white', edgecolor='black')
