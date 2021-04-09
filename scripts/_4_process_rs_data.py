@@ -24,7 +24,6 @@ def convert_date(input_df,col_of_interest):
 	input_df[col_of_interest] = pd.to_datetime(input_df[col_of_interest],errors='coerce')
 	return input_df[col_of_interest]
 
-
 def create_snow_drought_subset(input_df,col_of_interest,huc_level): 
 	"""Helper function."""
 
@@ -85,26 +84,43 @@ def merge_dfs(snotel_data,rs_data,drought_type,huc_level='8',col_of_interest='ND
 	"""Merge snotel snow drought data with RS data."""
 	#deal with a circumstance where there is SAR and optical data coming in 
 	if 'sar_data' in kwargs: 
-		sar_data=kwargs.get('sar_data')
-		try: 
-			sar_data.drop(columns=['elev_min','elev_mean','elev_max'],inplace=True)
-		except KeyError as e: 
-			pass 
-		rs_data=rs_funcs.merge_remote_sensing_data(rs_data,sar_data)
-		rs_data = rs_funcs.convert_pixel_count_sq_km(rs_data,'NDSI_Snow_Cover',resolution)
-		rs_data[f'{drought_type}_WSCA'] = rs_data['filter']/rs_data['NDSI_Snow_Cover'] #calculate wet snow as fraction of snow covered area
-
+		rs_data=kwargs.get('sar_data')
+		#make sure that the cols used for merging are homogeneous in type 
+		rs_data['huc8'] = pd.to_numeric(rs_data['huc'+huc_level])
+		rs_data['date'] = convert_date(rs_data,'date')
+		# try: 
+		# 	sar_data.drop(columns=['elev_min','elev_mean','elev_max'],inplace=True)
+		# except KeyError as e: 
+		# 	pass 
+		#rs_data=rs_funcs.merge_remote_sensing_data(rs_data,sar_data)
+		
+		#rs_data = rs_funcs.convert_pixel_count_sq_km(rs_data,'NDSI_Snow_Cover',resolution)
+		#rs_data[f'{drought_type}_WSCA'] = rs_data['filter']/rs_data['NDSI_Snow_Cover'] #calculate wet snow as fraction of snow covered area
+		if drought_type.lower() == 'total': 
+			rs_data.rename(columns={col_of_interest:f'{drought_type}_{col_of_interest}'},inplace=True)
+			
+			return rs_data
+	
 	combined = create_snow_drought_subset(snotel_data,drought_type,huc_level)
-	#merge em 
+	if not f'huc{huc_level}' in combined.columns: 
+		combined.rename(columns={'huc_id':f'huc_{huc_level}'},inplace=True)
+		combined[f'huc_{huc_level}'] = pd.to_numeric(rs_data['huc'+huc_level])
+
+	# print(combined.dtypes)
+	# print(rs_data.dtypes)
+	# #merge em 
+	# print('rs data: ',rs_data.date)
+	# print('combined',combined.date)
 	combined=combined.merge(rs_data, on=['date',f'huc{huc_level}'], how='inner') #changed rs_df to sentinel data 2/1/2021 to accommodate missing modis data temporarily 
 	#get the rs data for the time periods of interest for a snow drought type 
 	combined.rename(columns={col_of_interest:f'{drought_type}_{col_of_interest}'},inplace=True)
 	#combined = combined.groupby([f'huc{huc_level}', 'date'])[f'{drought_type}_{col_of_interest}'].transform(max) #doesn't really matter which stat (max,min,first) because they are all the same 
-	if 'sar_data' in kwargs: 
-		combined = combined.sort_values(f'{drought_type}_WSCA').drop_duplicates(subset=[f'huc{huc_level}', 'date'], keep='first')
-	else:
-		combined = combined.sort_values(f'{drought_type}_{col_of_interest}').drop_duplicates(subset=[f'huc{huc_level}', 'date'], keep='first')
-
+	# if 'sar_data' in kwargs: 
+	# 	combined = combined.sort_values(f'{drought_type}_').drop_duplicates(subset=[f'huc{huc_level}', 'date'], keep='first')
+	#else:
+	combined = combined.sort_values(f'{drought_type}_{col_of_interest}').drop_duplicates(subset=[f'huc{huc_level}', 'date'], keep='first')
+	# print('combined')
+	# print(combined)
 	#check if a couple of args are in kwargs, they can be anything that will evaluate to True
 	if 'groupby' in kwargs: 
 		rs_df = combined.groupby('date')[f'{drought_type}_{col_of_interest}'].sum().reset_index()
@@ -145,6 +161,7 @@ def combine_rs_snotel_annually(input_dir,season,pickles,agg_step=12,resolution=5
 		optical_data = input_data.get_optical_data('NDSI_Snow_Cover')
 		optical_data[f'huc{huc_level}'] = pd.to_numeric(optical_data['huc'+huc_level]) 
 		optical_data['date'] = convert_date(optical_data,'date')
+			
 		# if 'sar_data' in kwargs: 
 		# 	sar_data = input_data.get_sentinel_data('filter')
 
@@ -152,7 +169,9 @@ def combine_rs_snotel_annually(input_dir,season,pickles,agg_step=12,resolution=5
 		#convert pixel counts to area
 		if not sp: 
 			optical_data=rs_funcs.convert_pixel_count_sq_km(optical_data,col_of_interest,resolution)
-
+			optical_data['area'] = optical_data[f'huc{huc_level}'].map(kwargs.get('hucs_dict'))
+			#normalize snow covered area by basin area
+			optical_data['snow_ratio'] = optical_data['NDSI_Snow_Cover']/optical_data['area']
 		#optical_data['year'] = optical_data['date'].dt.year
 
 		if not total: 
@@ -221,6 +240,15 @@ def aggregate_dfs(input_dict,index,region,drought_type,sp=False):
 
 	return output
 
-def combine_sar_data(dry,warm,warm_dry,index): 
+def combine_sar_data(dry,warm,warm_dry,total,index): 
 	"""Helper function for the plotting script."""
-	return pd.concat([dry[index]['dry_WSCA'],warm[index]['warm_WSCA'],warm_dry[index]['warm_dry_WSCA']],axis=1)
+	try: 
+		if 'dry_filter' in dry.columns: 
+			sar_data = reduce(lambda x,y: pd.merge(x,y,on=['huc8'],
+				how='inner'),[dry[['dry_filter','huc8']],warm[['warm_filter','huc8']],warm_dry[['warm_dry_filter','huc8']],total[['total_filter','huc8']]]).fillna(np.nan)
+			return sar_data.set_index('huc8')
+	except TypeError as e: 
+		pass
+	else: 
+		optical_data=pd.concat([dry[index]['dry_NDSI_Snow_Cover'],warm[index]['warm_NDSI_Snow_Cover'],warm_dry[index]['warm_dry_NDSI_Snow_Cover']],axis=1)
+		return optical_data

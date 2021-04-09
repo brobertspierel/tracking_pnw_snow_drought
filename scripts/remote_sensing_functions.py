@@ -86,9 +86,9 @@ def combine_hucs_w_sentinel(hucs_data,sentinel_data,huc_level,resolution,col_of_
 	#create a dict of hucs ids and areas of basins 
 	hucs_dict = hucs_df.set_index('id').to_dict()['area']
 	#create a new area col
-	sentinel_df['area'] = sentinel_df[f'huc{huc_level}'].map(hucs_dict)
+	#sentinel_df['area'] = sentinel_df[f'huc{huc_level}'].map(hucs_dict)
 	#normalize snow covered area by basin area
-	sentinel_df['snow_ratio'] = sentinel_df[col_of_interest]/sentinel_df['area']
+	#sentinel_df['snow_ratio'] = sentinel_df[col_of_interest]/sentinel_df['area']
 	
 	return sentinel_df
 

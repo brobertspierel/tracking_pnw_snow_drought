@@ -152,19 +152,22 @@ def main(sp_data,sca_data,pickles,season,palette,sar_data,hucs_data,year_of_inte
 	#plot 2001-2020 optical data 
 	#################################################################
 	# if not 'year_of_interest' in kwargs: 
-	# 	print('doing this one')
-	# 	dry_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,drought_type='dry',sp=True),sp=True)
-	# 	warm_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,drought_type='warm',sp=True),sp=True)
-	# 	warm_dry_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,drought_type='warm_dry',sp=True),sp=True)
-	# 	total_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,sp=True,total=True),sp=True)
+	print('doing this one')
+	print(hucs_data)
+	print(pd.read_csv(hucs_data))
+	# dry_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,drought_type='dry',sp=True),sp=True)
+	# warm_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,drought_type='warm',sp=True),sp=True)
+	# warm_dry_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,drought_type='warm_dry',sp=True),sp=True)
+	# total_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,sp=True,total=True),sp=True)
 
 
-	# 	dry=generate_output(combine_rs_snotel_annually(sca_data,season,pickles,drought_type='dry'))
-	# 	warm=generate_output(combine_rs_snotel_annually(sca_data,season,pickles,drought_type='warm'))
-	# 	warm_dry=generate_output(combine_rs_snotel_annually(sca_data,season,pickles,drought_type='warm_dry')) 
-	# 	total = generate_output(combine_rs_snotel_annually(sca_data,season,pickles,total=True)) 
-	
-	# 	#sca_plot=plot_sp_sca(dry,warm,warm_dry,total,'SCA max extent',palette,2,3,fig_dir=kwargs.get('fig_dir'),stats_output=kwargs.get('stats_output')) #dry,warm,warm_dry,total,ylabel,palette,nrows,ncols,stats_output=None,sp=False,show=True,**kwargs
+	# dry=generate_output(combine_rs_snotel_annually(sca_data,season,pickles,drought_type='dry'))
+	# warm=generate_output(combine_rs_snotel_annually(sca_data,season,pickles,drought_type='warm'))
+	# warm_dry=generate_output(combine_rs_snotel_annually(sca_data,season,pickles,drought_type='warm_dry')) 
+	# total = generate_output(combine_rs_snotel_annually(sca_data,season,pickles,total=True)) 
+	# print('example')
+	# print(dry_sp)
+	#sca_plot=plot_sp_sca(dry,warm,warm_dry,total,'SCA max extent',palette,2,3,fig_dir=kwargs.get('fig_dir'),stats_output=kwargs.get('stats_output')) #dry,warm,warm_dry,total,ylabel,palette,nrows,ncols,stats_output=None,sp=False,show=True,**kwargs
 	
 	# 	sp_plot=plot_sp_sca(dry_sp,warm_sp,warm_dry_sp,total_sp,'Snow persistence',palette,2,1,fig_dir=kwargs.get('fig_dir'),stats_output=kwargs.get('stats_output'),sp=True)
 
@@ -178,23 +181,24 @@ def main(sp_data,sca_data,pickles,season,palette,sar_data,hucs_data,year_of_inte
 	# print(agg_step)
 	# print(f'short_term_snow_drought_{2020}_water_year_{season}_{agg_step}_day_time_step_w_all_dates')
 	# print(pickles)
-	snotel_data = pickles+f'short_term_snow_drought_{year_of_interest}_water_year_{season}_{agg_step}_day_time_step_w_all_dates'
+	# snotel_data = pickles+f'short_term_snow_drought_{year_of_interest}_water_year_{season}_{agg_step}_day_time_step_w_all_dates'
 	
-	#instantiate the acquireData class and read in snotel, sentinel and modis/viirs data 
-	input_data = obtain_data.AcquireData(sar_data,sca_data,snotel_data,hucs_data,huc_level,resolution)
-	short_term_snow_drought = input_data.get_snotel_data()
-	sar_data = input_data.get_sentinel_data('filter')
-	optical_data = input_data.get_optical_data('NDSI_Snow_Cover')
+	# #instantiate the acquireData class and read in snotel, sentinel and modis/viirs data 
+	# input_data = obtain_data.AcquireData(sar_data,sca_data,snotel_data,hucs_data,huc_level,resolution)
+	# short_term_snow_drought = input_data.get_snotel_data()
+	# sar_data = input_data.get_sentinel_data('filter')
+	# optical_data = input_data.get_optical_data('NDSI_Snow_Cover')
 	
-	dry = _4_rs.split_dfs_within_winter_season(merge_dfs(short_term_snow_drought,optical_data,'dry',sar_data=sar_data),None)
-	warm = _4_rs.split_dfs_within_winter_season(merge_dfs(short_term_snow_drought,optical_data,'warm',sar_data=sar_data),None)
-	warm_dry = _4_rs.split_dfs_within_winter_season(merge_dfs(short_term_snow_drought,optical_data,'warm_dry',sar_data=sar_data),None)
+	# dry = _4_rs.split_dfs_within_winter_season(merge_dfs(short_term_snow_drought,optical_data,'dry',sar_data=sar_data),None)
+	# warm = _4_rs.split_dfs_within_winter_season(merge_dfs(short_term_snow_drought,optical_data,'warm',sar_data=sar_data),None)
+	# warm_dry = _4_rs.split_dfs_within_winter_season(merge_dfs(short_term_snow_drought,optical_data,'warm_dry',sar_data=sar_data),None)
+	# total = _4_rs.split_dfs_within_winter_season(merge_dfs(short_term_snow_drought,optical_data,'total',sar_data=sar_data),None)
+
+	# early = combine_sar_data(dry,warm,warm_dry,total,0)
+	# mid = combine_sar_data(dry,warm,warm_dry,total,1)
+	# late = combine_sar_data(dry,warm,warm_dry,total,2)
 	
-	early = combine_sar_data(dry,warm,warm_dry,0)
-	mid = combine_sar_data(dry,warm,warm_dry,1)
-	late = combine_sar_data(dry,warm,warm_dry,2)
-	
-	print(early)
+	#print(early)
 
 	#################################################################
 
@@ -225,4 +229,4 @@ if __name__ == '__main__':
 	#main(sp_data,sca_data,pickles,season,palette,stats_output=stats,fig_dir=fig_dir)
 
 	#call main func for plotting sar and optical data 
-	main(None,optical_csv_dir,pickles,season,palette,sar_data=sentinel_csv_dir,year_of_interest=year_of_interest,hucs_data=hucs_data,resolution=resolution,stats_output=stats,fig_dir=fig_dir) 
+	main(sp_data,sca_data,pickles,season,palette,sar_data=sentinel_csv_dir,year_of_interest=year_of_interest,hucs_data=hucs_data,resolution=resolution,stats_output=stats,fig_dir=fig_dir) 
