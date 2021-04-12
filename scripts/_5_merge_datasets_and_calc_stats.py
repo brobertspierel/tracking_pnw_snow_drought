@@ -56,13 +56,12 @@ def iteratively_generate_stats(input_df):
 	output_dict = {}
 	for x in input_df.index.unique():
 		df=input_df[input_df.index==x] 
-		print(df.shape)
-		print(df)
 		try: 
 			output_dict.update({x:run_stats(df)[1]}) #run the stats function and get the p-value out 
 		except Exception as e: 
 			print(f'The offending huc was: {x} and the error was {e}')
 	return output_dict
+
 
 class FormatDf(): 
 	
@@ -101,20 +100,31 @@ def main(sp_data,sca_data,pickles,season,index,data_type,output_dir,year_of_inte
 		index = 0 
 	#####################################################################################################################
 	#get optical data with first being SP
-	dry_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,drought_type='dry',sp=True),sp=True)
-	warm_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,drought_type='warm',sp=True),sp=True)
-	warm_dry_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,drought_type='warm_dry',sp=True),sp=True)
-	total_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,sp=True,total=True),sp=True)
+	# dry_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,drought_type='dry',sp=True),sp=True)
+	# warm_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,drought_type='warm',sp=True),sp=True)
+	# warm_dry_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,drought_type='warm_dry',sp=True),sp=True)
+	# total_sp = generate_output(combine_rs_snotel_annually(sp_data,'core_winter',pickles,sp=True,total=True),sp=True)
 
 	#then SCA
-	dry=generate_output(combine_rs_snotel_annually(sca_data,season,pickles,drought_type='dry'))
-	warm=generate_output(combine_rs_snotel_annually(sca_data,season,pickles,drought_type='warm'))
-	warm_dry=generate_output(combine_rs_snotel_annually(sca_data,season,pickles,drought_type='warm_dry')) 
-	total = generate_output(combine_rs_snotel_annually(sca_data,season,pickles,total=True)) 
+	hucs_data=pd.read_csv(kwargs.get('hucs_data')) 
+	hucs_data = dict(zip(hucs_data.id, hucs_data.area))
 	
+	
+	dry=generate_output(combine_rs_snotel_annually(sca_data,season,pickles,drought_type='dry',split=False,hucs_data=hucs_data))
+	warm=generate_output(combine_rs_snotel_annually(sca_data,season,pickles,drought_type='warm',split=False,hucs_data=hucs_data))
+	warm_dry=generate_output(combine_rs_snotel_annually(sca_data,season,pickles,drought_type='warm_dry',split=False,hucs_data=hucs_data)) 
+	total = generate_output(combine_rs_snotel_annually(sca_data,season,pickles,total=True,split=False,hucs_data=hucs_data)) 
+	
+	print(dry)
 	cols = ['dry_NDSI_Snow_Cover','warm_NDSI_Snow_Cover','warm_dry_NDSI_Snow_Cover','NDSI_Snow_Cover']
 	sca_dfs = [dry,warm,warm_dry,total]
 	sp_dfs = [dry_sp,warm_sp,warm_dry_sp,total_sp]
+
+	#####################################################################################################################
+	#combine the datasets to try running the KW test on basins for all the years between drought types instead of within one year 
+	#These come in the form {'west'[early,mid,late],'east':['early,mid,late']}
+	
+
 
 	#####################################################################################################################
 	#run for sentinel data 
@@ -155,42 +165,42 @@ def main(sp_data,sca_data,pickles,season,index,data_type,output_dir,year_of_inte
 	# cols = ['dry_WSCA','warm_WSCA','warm_dry_WSCA','total_WSCA']
 	#####################################################################################################################
 
-	kw_west = {}
-	conover_west = {}
-	kw_east = {}
-	conover_east = {}
+	# kw_west = {}
+	# conover_west = {}
+	# kw_east = {}
+	# conover_east = {}
 
-	if not data_type.upper() == 'SAR': 
-		for year in range(2001,2021): #hardcoded for MODIS record 
-			print('year is: ',year)
+	# if not data_type.upper() == 'SAR': 
+	# 	for year in range(2001,2021): #hardcoded for MODIS record 
+	# 		print('year is: ',year)
 
-			if data_type.upper() == 'SCA': 
-				print('SCA')
-				input_dfs = sca_dfs
-			elif data_type.upper() == 'SP': 
-				input_dfs = sp_dfs
-			else: 
-				print('Please check specification for var data_type. This can only be one of SP or SCA')
+	# 		if data_type.upper() == 'SCA': 
+	# 			print('SCA')
+	# 			input_dfs = sca_dfs
+	# 		elif data_type.upper() == 'SP': 
+	# 			input_dfs = sp_dfs
+	# 		else: 
+	# 			print('Please check specification for var data_type. This can only be one of SP or SCA')
 			
-			west_merged = FormatDf(input_dfs,cols,'west',index,year).format_output()#west_merged.transform(np.sort)
+	# 		west_merged = FormatDf(input_dfs,cols,'west',index,year).format_output()#west_merged.transform(np.sort)
 
-			east_merged = FormatDf(input_dfs,cols,'east',index,year).format_output()
+	# 		east_merged = FormatDf(input_dfs,cols,'east',index,year).format_output()
 
-			west=run_stats(west_merged) #returns a tuple of the type (H-stat, p-val, conovoer df)
-			east=run_stats(east_merged)
+	# 		west=run_stats(west_merged) #returns a tuple of the type (H-stat, p-val, conovoer df)
+	# 		east=run_stats(east_merged)
 
-			try: 
-				if west[1] < 0.05: 
-					kw_west.update({year:west[1]})
-					conover_west.update({year:west[2]})
-				if east[1] < 0.05: 
-					kw_east.update({year:east[1]})
-					conover_east.update({year:east[2]})
-			except TypeError as e: 
-				print(e)
+	# 		try: 
+	# 			if west[1] < 0.05: 
+	# 				kw_west.update({year:west[1]})
+	# 				conover_west.update({year:west[2]})
+	# 			if east[1] < 0.05: 
+	# 				kw_east.update({year:east[1]})
+	# 				conover_east.update({year:east[2]})
+	# 		except TypeError as e: 
+	# 			print(e)
 	
-	else: #run stats for single years for the SAR data 
-		pass
+	# else: #run stats for single years for the SAR data 
+	# 	pass
 		#df3=df1.groupby(['Country'])['Revenue'].apply(lambda x:(x.max() - x.min()) / 2).reset_index()
 		# basin_stats=iteratively_generate_stats(merged)
 		# print(basin_stats)
@@ -243,7 +253,7 @@ if __name__ == '__main__':
 	#main(sp_data,sca_data,pickles,season,index=2,data_type='SAR',output_dir=pickles) #note that index can be 0-2 for SCA and only 0 for SP 
 
 	#example call for SAR data included
-	main(None,optical_csv_dir,pickles,season,-9999,data_type='SCA',output_dir=pickles,year_of_interest=year_of_interest,hucs_data=hucs_data,sar_data=sentinel_csv_dir) #note that index can be 0-2 for SCA and only 0 for SP 
+	main(sp_data,optical_csv_dir,pickles,season,-9999,data_type='SCA',output_dir=pickles,year_of_interest=year_of_interest,hucs_data=hucs_data,sar_data=sentinel_csv_dir) #note that index can be 0-2 for SCA and only 0 for SP 
 
 
 

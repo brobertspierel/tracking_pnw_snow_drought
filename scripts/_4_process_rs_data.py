@@ -136,7 +136,7 @@ def merge_dfs(snotel_data,rs_data,drought_type,huc_level='8',col_of_interest='ND
 		
 		return combined
 
-def combine_rs_snotel_annually(input_dir,season,pickles,agg_step=12,resolution=500,huc_level='8',col_of_interest='NDSI_Snow_Cover',elev_stat='elev_mean',sp=False,total=False,**kwargs): 
+def combine_rs_snotel_annually(input_dir,season,pickles,agg_step=12,resolution=500,huc_level='8',col_of_interest='NDSI_Snow_Cover',elev_stat='elev_mean',sp=False,total=False,split=True,**kwargs): 
 	"""Get RS data for snow drought time steps and return those data split by region."""
 	
 	west_dfs_list = []
@@ -146,7 +146,7 @@ def combine_rs_snotel_annually(input_dir,season,pickles,agg_step=12,resolution=5
 
 	for file in optical_files: 
 		year = re.findall('(\d{4})', os.path.split(file)[1])[1] #gets a list with the start and end of the water year, take the second one. expects files to be formatted a specific way from GEE 
-
+		#print(year)
 		#decide which season length to use depending on the RS aggregation type (SP or SCA)
 		if 'SP' in file: 
 			snotel_data = pickles+f'short_term_snow_drought_{year}_water_year_{season}_{agg_step}_day_time_step_w_all_dates_first_day_start'
@@ -169,14 +169,20 @@ def combine_rs_snotel_annually(input_dir,season,pickles,agg_step=12,resolution=5
 		#convert pixel counts to area
 		if not sp: 
 			optical_data=rs_funcs.convert_pixel_count_sq_km(optical_data,col_of_interest,resolution)
-			optical_data['area'] = optical_data[f'huc{huc_level}'].map(kwargs.get('hucs_dict'))
+			optical_data['area'] = optical_data[f'huc{huc_level}'].map(kwargs.get('hucs_data'))
 			#normalize snow covered area by basin area
-			optical_data['snow_ratio'] = optical_data['NDSI_Snow_Cover']/optical_data['area']
+			optical_data[col_of_interest] = optical_data[col_of_interest]/optical_data['area'] #changed 4/9/2021 to update the NDSI_Snow_Cover col in place 
 		#optical_data['year'] = optical_data['date'].dt.year
 
 		if not total: 
 			#combine the remote sensing and snotel data using the snotel dates of snow droughts to extract rs data 
 			merged=merge_dfs(short_term_snow_drought,optical_data,kwargs.get('drought_type')) #snotel_data,rs_data,drought_type
+			# print('merged')
+			# print(merged)
+			# try: 
+			# 	print(merged[['NDSI_Snow_Cover','area']])
+			# except Exception as e: 
+			# 	pass
 		else: 
 			pass
 			#print('Calculating total with no snow droughts')
@@ -185,17 +191,23 @@ def combine_rs_snotel_annually(input_dir,season,pickles,agg_step=12,resolution=5
 			split_dfs=split_basins(merged,f'huc{huc_level}',year=year) #returns the merged df split into two dfs, west (0) and east (1)
 		
 		except UnboundLocalError as e: 
+			print('stopped here')
 			split_dfs=split_basins(optical_data,f'huc{huc_level}',year=year) #returns the merged df split into two dfs, west (0) and east (1)
+			print(split_dfs)
 		
 		west_dfs_list.append(split_dfs[0])
 		east_dfs_list.append(split_dfs[1])
 		
+	print('list',west_dfs_list)
 	output_west_df = pd.concat(west_dfs_list,ignore_index=True)
 	output_east_df = pd.concat(east_dfs_list,ignore_index=True)
-
-	return output_west_df,output_east_df #returns two dfs, one for each region for all the years for one drought type 
-
-
+	try: 
+		if split: 
+			return output_west_df,output_east_df #returns two dfs, one for each region for all the years for one drought type 
+		else: 
+			return merged 
+	except UnboundLocalError as e: 
+		return optical_data
 
 def get_anom_col(input_df,base_col,skip_col='year'): #not currently in use 3/15/2021
 	"""Helper function."""
@@ -208,15 +220,18 @@ def get_anom_col(input_df,base_col,skip_col='year'): #not currently in use 3/15/
 	input_df.drop(columns=[base_col],inplace=True)
 	return input_df
 
-def generate_output(input_tuple,sp=False):
+def generate_output(input_data,sp=False):
 	output = {} 
-	for i,j in zip(input_tuple,['west','east']): 
-		if not sp: 
-			chunk = split_dfs_within_winter_season(i,j)
-			output.update(chunk)
-		else: 
-			output.update({j:[i]})
-	return output
+	try: 
+		for i,j in zip(input_data,['west','east']): 
+			if not sp: 
+				chunk = split_dfs_within_winter_season(i,j)
+				output.update(chunk)
+			else: 
+				output.update({j:[i]})
+		return output
+	except Exception as e: #if this is merged or straight output without changes it will just be a dict and not df and therefore not iterable 
+		split_dfs_within_winter_season(input_data)
 
 def aggregate_dfs(input_dict,index,region,drought_type,sp=False): 
 	"""Helper function for plotting."""
