@@ -39,6 +39,7 @@ def define_snow_drought_recentness(input_df,col_of_interest,grouping_col,output_
 	#we want to get periods of 1985-1990, 1991-2000, 2001-2010 and 2011-2020
 
 	output_dict = {}
+	print('The input df is: ', input_df)
 	for item in input_df[grouping_col].unique(): 
 		df_subset = input_df[input_df[grouping_col]==item]
 		filter_values = pd.IntervalIndex.from_tuples([(1980, 1989), (1990, 1999), (2000, 2009),(2010,2019)],closed='both')
@@ -78,7 +79,7 @@ def main():
 
 		palette = list(palette.values())
 		labels=['Dry', 'Warm', 'Warm/dry', 'No drought']
-		plot_func = 'year_totals' #can be one of count, year_totals, recentness
+		plot_func = 'recentness' #can be one of count, year_totals, recentness
 		try: 
 			long_term_snow_drought = combine.pickle_opener(pickles+f'long_term_snow_drought_{anom_start_date}_{anom_end_date}_{season}_w_hucs') #	long_term_snow_drought_filename = pickles+f'long_term_snow_drought_{anom_start_date}_{anom_end_date}_{season}_w_hucs'
 

@@ -1,0 +1,3 @@
+{
+"daymet_data":"/vol/v1/general_files/user_files/ben/excel_files/daymet_annual_data/twelve_day_composites/"
+}
