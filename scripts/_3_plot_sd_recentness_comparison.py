@@ -137,13 +137,18 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',**kwar
 	#define the overall figure- numbers are hardcoded
 	fig,axs = plt.subplots(nrow,ncol,sharex=True,sharey=True,gridspec_kw={'wspace':0,'hspace':0,
                                     'top':0.95, 'bottom':0.05, 'left':0.05, 'right':0.95},
-                       figsize=(nrow*2,ncol*2))  # <- adjust figsize but keep ratio n/m#constrained_layout=True,gridspec_kw=dict(wspace=0.0, hspace=0.0))#figsize=(ncol + 1, nrow + 1),gridspec_kw=dict(wspace=0.0, hspace=0.0))
-				
+                       figsize=(nrow*3,ncol*2))  # <- adjust figsize but keep ratio n/m#constrained_layout=True,gridspec_kw=dict(wspace=0.0, hspace=0.0))#figsize=(ncol + 1, nrow + 1),gridspec_kw=dict(wspace=0.0, hspace=0.0))
+	
+	#adjust font size
+	#plt.rcParams.update({'font.size': 16})
+
+	s_colors = ['#ccc596','#e4b047','#D95F0E']
+	d_colors = ['#d4cfd9','#95aac5','#267eab']
 	#iterate down rows (each row is a time period)
 	for x in range(3): 
 	
 		#get counts for each of the drought types for the time period 
-		recentness=define_snow_drought_recentness(daymet_periods[x],'huc8',None)
+		recentness=define_snow_drought_recentness(snotel_periods[x],'huc8',None)
 		dry = {}
 		warm = {}
 		warm_dry = {}
@@ -156,7 +161,8 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',**kwar
 				warm.update({k:int(v.at['warm'].left)})
 				warm_dry.update({k:int(v.at['warm_dry'].left)})
 			except Exception as e: 
-				print('The error here was {e} and is likely the result of not running in max mode above.')
+				print(f'The error here was {e} and is likely the result of not running in max mode above.')
+				raise
 	
 	
 		#pd.set_option("display.max_rows", None, "display.max_columns", None) #change to print an entire df
@@ -165,23 +171,26 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',**kwar
 		hucs_shp['warm_colors'] = hucs_shp.huc8.map(warm)
 		hucs_shp['warm_dry_colors'] = hucs_shp.huc8.map(warm_dry)
 		
+		#print(hucs_shp)
+
 		#iterate through cols (across a row) with each col being a drought type. 
 		plot_cols=['dry_colors','warm_colors','warm_dry_colors']
 		xlabels=['Dry', 'Warm', 'Warm/dry']
 		ylabels=['Early','Mid','Late']
 
-		# for i in range(10):
-		#     for j in range(3):
-		#         im = np.random.rand(28,28)
-		#         ax= plt.subplot(gs[i,j])
-		#         ax.imshow(im)
-		#         ax.set_xticklabels([])
-		#         ax.set_yticklabels([])
+		#just export some data
+		# export_df = hucs_shp[['huc8','dry_colors','warm_colors','warm_dry_colors']]
+		# for i in [1990,2000,2010]: 
+		# 	export_df[f'dry_{i}'] = np.where(export_df['dry_colors'] == i,1,0)
+		# 	export_df[f'warm_{i}'] = np.where(export_df['warm_colors'] == i,1,0)
+		# 	export_df[f'warm_dry_{i}'] = np.where(export_df['warm_dry_colors'] == i,1,0)
+		# csv_fp = os.path.join(kwargs.get('output_dir'),f'{ylabels[x]}_season_daymet_most_prevalent_decades_by_sd_type_binary_max.csv') 
+		# export_df.to_csv(csv_fp)
 
 
 		for y in range(3): 
 			bounds = [1990,2000,2010,2020]
-			cmap = ListedColormap(palette)
+			cmap = ListedColormap(s_colors)
 			#fig, ((ax1,ax2),(ax3,ax4)) = plt.subplots(nrows=2,ncols=2, sharex=True, sharey=True,figsize=(18,14))
 			minx, miny, maxx, maxy = hucs_shp.geometry.total_bounds
 
@@ -195,8 +204,9 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',**kwar
 			#axs[x][y].set_title('Dry snow drought')
 			axs[x][y].set_xlim(minx - 1, maxx + 1) # added/substracted value is to give some margin around total bounds
 			axs[x][y].set_ylim(miny - 1, maxy + 1)
-			axs[0][y].set_title(xlabels[y])
-			axs[x][0].set_ylabel(ylabels[x])
+			axs[0][y].set_title(xlabels[y],fontdict={'fontsize': 14})
+			axs[x][0].set_ylabel(ylabels[x],fontsize=14)
+			
 
 	bounds = [1990, 2000, 2010, 2020]
 	norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
@@ -217,6 +227,7 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',**kwar
 
 	# cax = plt.axes([0.85, 0.1, 0.075, 0.8])
 	# plt.colorbar(cax=cax)
+	#plt.savefig(os.path.join(output_dir,'daymet_recentness_draft2.png'),bbox_inches='tight',pad_inches=, dpi=300)
 	plt.show()
 	plt.close('all')
 	

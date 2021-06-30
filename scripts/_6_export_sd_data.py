@@ -14,6 +14,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.metrics import classification_report 
 import seaborn as sns
 from scipy.stats import pearsonr
+from _3_plot_sd_recentness_comparison import define_snow_drought_recentness
 
 def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',**kwargs):
 	
@@ -102,117 +103,32 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',**kwar
 		daymet_drought=daymet_drought[['huc8','year','dry','warm','warm_dry']]
 		
 		daymet_drought.columns=['huc8','year']+['d_'+column for column in daymet_drought.columns if not (column =='huc8') | (column=='year')]
-		print(daymet_drought)
-		#merge the two datasets into one df 
-		dfs = snotel_drought.merge(daymet_drought,on=['huc8','year'],how='inner')
-		#print('THe combined output looks like: ', dfs)
-		#compare each drought type and record the results in a new col 
-
-		dfs['dry']=dfs['s_dry']==dfs['d_dry']
-		dfs['warm']=dfs['s_warm']==dfs['d_dry']
-		dfs['warm_dry']=dfs['s_warm_dry']==dfs['d_warm_dry']
-
-		#print(dfs.groupby(['huc8'])['dry','warm','warm_dry'].sum())
-		# pd.set_option('display.max_columns', None)
-		# pd.set_option('display.max_rows', None)
-		# #print(dfs)
-		period_list.append(dfs)
 		
-	labels=['Snotel','Daymet']
-	# # ###############################################################
-	# print('list is: ', period_list)
-	# #df = pd.DataFrame({"dry":dry_counts,"warm":warm_counts,"warm_dry":warm_dry_counts})
-	nrow=3
-	ncol=3
-	fig,axs = plt.subplots(nrow,ncol,sharex=True,sharey=True,
-				gridspec_kw={'wspace':0,'hspace':0,
-                                    'top':0.95, 'bottom':0.075, 'left':0.05, 'right':0.95},
-                figsize=(nrow*2,ncol*2))
-	cols=['dry','warm','warm_dry']
-	xlabels=['Dry', 'Warm', 'Warm/dry']
-	ylabels=['Early','Mid','Late']
-	for x in range(3): 
-		for y in range(3): 
-			print('x is: ',x)
-			print('y is: ',y)
-			print('col is: ',cols[y])
-			#produce the confusion matrices 
-			# reference_data = [float(i) for i in list(period_list[x][f's_{cols[y]}'])]
-			# predicted_data = [float(i) for i in list(period_list[x][f'd_{cols[y]}'])]
-			
-			# #ids = zonal_stats_df.index
-			# #generate some stats
-			# results = confusion_matrix(reference_data, predicted_data)#,zonal_stats_df.index) 
-			# print(results)
-			
-			# #ax=plt.subplot()
-			# sns.set(font_scale=2)  # crazy big
-			# sns.heatmap(results,annot=True,ax=axs[x][y],fmt='g',cmap='Blues')
+		#export the data to csv 
+		# snotel_drought.to_csv(os.path.join(kwargs.get('output_dir'),f'{p1}_season_snotel_snow_drought_occurences_by_basin.csv'))
+		# daymet_drought.to_csv(os.path.join(kwargs.get('output_dir'),f'{p1}_season_daymet_snow_drought_occurences_by_basin.csv'))
 
-			# #axs[x][y].set_xlabel('Predicted labels');axs.set_ylabel('True labels')
-			# print(classification_report(reference_data,predicted_data))
-			
-			#produce the count plots 
-			s_counts = period_list[x][f's_{cols[y]}'].value_counts().sort_index().astype('int')
-			d_counts = period_list[x][f'd_{cols[y]}'].value_counts().sort_index().astype('int')
-			print(s_counts)
-			print(d_counts)
-			df = pd.DataFrame({"snotel":s_counts,"daymet":d_counts})
-			#df = df.astype(int)
-			#reformat a few things in the df 
-			df.index=df.index.astype(int)
-			df.replace(np.nan,0,inplace=True)
+		snotel_long_term = snotel_drought.groupby('huc8')['s_dry','s_warm','s_warm_dry'].count()
+		daymet_long_term = daymet_drought.groupby('huc8')['d_dry','d_warm','d_warm_dry'].count()
+		print(snotel_long_term)
+		snotel_long_term['wd_max'] = np.where((snotel_long_term['s_warm_dry']>snotel_long_term['s_warm'])&
+			(snotel_long_term['s_warm_dry']>snotel_long_term['s_dry']),1,0)
 
-			#there are not droughts in all the years and timeframes but these gaps mess up plotting 
-			#so we want to infill them with zeros so all the timeperiods have all of the years. 
-			df=df.reindex(np.arange(1990,2021), fill_value=0)
+		daymet_long_term['wd_max'] = np.where((daymet_long_term['d_warm_dry']>daymet_long_term['d_warm'])&
+			(daymet_long_term['d_warm_dry']>daymet_long_term['d_dry']),1,0)
 
-			# calculate the Pearson's correlation between two variables
-			
-			# seed random number generator
-			#seed(1)
-			# prepare data
-			# data1 = 20 * randn(1000) + 100
-			# data2 = data1 + (10 * randn(1000) + 50)
-			# calculate Pearson's correlation
-			corr, _ = pearsonr(df.snotel, df.daymet)
-			print(f'Pearsons correlation: {corr}')
+		test = snotel_long_term.loc[(snotel_long_term['s_dry']>5)&(snotel_long_term['s_warm']>5)&(snotel_long_term['s_warm_dry']>5)]
+		print(test.shape)
+		# snotel_long_term.to_csv(os.path.join(kwargs.get('output_dir'),f'{p1}_season_snotel_counts_for_each_basin_w_wd_max.csv'))
+		# daymet_long_term.to_csv(os.path.join(kwargs.get('output_dir'),f'{p1}_season_daymet_counts_for_each_basin_w_wd_max.csv'))
+		
+		# dry_subset = snotel_long_term.loc[(snotel_long_term['s_dry']>snotel_long_term['s_warm'])&(snotel_long_term['s_dry']>snotel_long_term['s_warm_dry'])]
+		# print(dry_subset)
+		# print(dry_subset.shape)
 
-			print('df is: ')
-			print(df)
-			print('########################################')
-			# print(s_counts)
-			# print(d_counts)
-			# s_counts.bar(ax=axs[x][y])
-			# d_counts.bar(ax=axs[x][y])
-			#set just the horizontal grid lines 
-			# axs[x][y].set_axisbelow(True)
-			# axs[x][y].yaxis.grid(color='gray', linestyle='dashed')
+		# recentness=define_snow_drought_recentness(daymet_drought,'huc8',None)
+		# print(recentness)
 
-			df.plot.bar(ax=axs[x][y],color=['#D95F0E','#267eab'],width=0.9,legend=False)#,label=['Dry','Warm','Warm/dry']) #need to do something with the color scheme here and maybe error bars? This could be better as a box plot? 
-			axs[x][y].grid(axis='y',alpha=0.5)
-
-			#set axis labels and annotate 
-			axs[x][y].annotate(f'r = {round(corr,2)}',xy=(0.05,0.9),xycoords='axes fraction',fontsize=14)
-			axs[0][y].set_title(xlabels[y],fontdict={'fontsize': 14})
-			axs[x][0].set_ylabel(ylabels[x],fontsize=14)
-			# ax1.set_ylabel("Snow drought quantities")
-			axs[2][2].legend(labels=labels,loc='upper center')
-			#axs[x][y].set_xticklabels(xlabels, Fontsize= )
-			#axs[x][y].set_xticks(range(1990,2021,5))
-			start, end = axs[x][y].get_xlim()
-			print(start,end)
-			#ax.xaxis.set_ticks(np.arange(start, end, stepsize))
-			for tick in axs[x][y].get_xticklabels():
-				tick.set_rotation(90)
-				#tick.label.set_fontsize(14) 
-			axs[x][y].tick_params(axis='x', labelsize=12)
-
-			#plt.xticks(rotation=90)
-	#plt.tight_layout()
-	plt.show()
-	plt.close('all')
-	
 if __name__ == '__main__':
 	params = sys.argv[1]
 	with open(str(params)) as f:
@@ -223,6 +139,7 @@ if __name__ == '__main__':
 		stations=variables['stations']
 		daymet_dir=variables['daymet_dir']
 		palette=variables['palette']
+		output_dir=variables['output_dir']
 	
 	hucs=pd.read_csv(stations)
 
@@ -234,4 +151,4 @@ if __name__ == '__main__':
 	
 	hucs_dict=dict(zip(hucs.id,hucs.huc8))
 	
-	main(daymet_dir,pickles,hucs=hucs_dict,palette=palette)
+	main(daymet_dir,pickles,hucs=hucs_dict,palette=palette,output_dir=output_dir)

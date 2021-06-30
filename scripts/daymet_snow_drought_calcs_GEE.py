@@ -36,7 +36,7 @@ def split_yearly_data(df,time_period,date_col='date'):
 	while True: 
 		if time_period.lower() == 'early': 
 			output = df.loc[(df[date_col].dt.month>=11)&(df[date_col].dt.month<=12)]
-			break 
+			break  
 		elif time_period.lower() == 'mid': 
 			output = df.loc[(df[date_col].dt.month>=1)&(df[date_col].dt.month<=2)]
 			break

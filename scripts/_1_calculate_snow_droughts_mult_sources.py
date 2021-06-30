@@ -8,6 +8,8 @@ import json
 import glob
 import datetime
 
+"""Note that this was set up to format data which was acquired and pickled with the original version of the snotel data obtaining script. 
+This original script formatted data as a dictionary."""
 
 class FormatData(): 
 	def __init__(self,input_files,time_period=None,drop_cols=None,date_col='date'): 
@@ -71,6 +73,9 @@ class FormatData():
 			elif self.time_period.lower() == 'late': 
 				output = df.loc[(df[self.date_col].dt.month>=3)&(df[self.date_col].dt.month<=4)]
 				break 
+			elif self.time_period.lower() == 'year': #added 5/26/2021 to try running for a full winter season
+				output = df.loc[(df[self.date_col].dt.month>=11)&(df[self.date_col].dt.month<=4)] 
+				break
 			else: 
 				self.time_period = input('Your choice of time_period is invalid.\nYou can choose one of early, mid, or late. \nType your choice and hit enter.')
 		return output
@@ -125,20 +130,12 @@ class CalcSnowDroughts():
 
 		#get agg stats for temp, this is a little harder because its a degree day model. 
 		#NOTE it is critical that temperatures are in deg C and not in deg F 
-		# self.input_df[self.temp] = self.input_df[self.temp].where(
-		# 	self.input_df[self.temp]>0,self.input_df[self.temp],0)
-		#df.loc[df.my_channel > 20000, 'my_channel'] = 0
 		self.input_df.loc[self.input_df[self.temp] < 0, self.temp] = 0 
-		#print('the temp here is: ',self.input_df)
 		temp_df = self.input_df.groupby([self.sort_col,'year'])[self.temp].sum().reset_index()
-		#self.input_df.loc[self.input_df[self.temp]>0].groupby([self.sort_col,'year'])[self.temp].count().reset_index()
-		# print('swe DF is: ', swe_prcp)
-		# print('temp df is: ', temp_df)
 		#combine the three vars 
 		sd_df = swe_prcp.merge(temp_df,how='inner',on=[self.sort_col,'year'])
 		#get the long-term means 
 		means = sd_df.groupby(self.sort_col).agg({self.swe_c:'mean',self.precip:'mean',self.temp:'mean'})
-		#print('means is: ',means)
 		#rename the means cols so when they merge they have distinct names 
 		means.columns = ['mean_'+column for column in means.columns]
 		#print(means)
@@ -166,17 +163,3 @@ class CalcSnowDroughts():
 			(sd_df[self.precip]<sd_df[f'mean_{self.precip}'])&(sd_df[self.temp]>sd_df[f'mean_{self.temp}']),sd_df['year'],np.nan)
 
 		return sd_df
-
-
-
-# if (v[f'WTEQ_{year}'].max() < v[f'stat_WTEQ'][0]) and (precip_df[f'PREC_{year}'].max()<precip_df['stat_PREC'][0]) and ((temp_df[f'TAVG_{year}'][temp_df[f'TAVG_{year}']>0].count())<temp_df['stat_TAVG'][0]): #(temp_df[f'TAVG_{year}'].mean()<temp_df[f'stat_TAVG'][0]):
-# 				#dry.append(year)#dry.update({station_id:year})
-# 				output_df=output_df.append({'station_id':k,'huc_id':hucs[k],'dry':year,'warm':np.nan,'warm_dry':np.nan},ignore_index=True)
-
-# 			elif (v[f'WTEQ_{year}'].max() < v[f'stat_WTEQ'][0]) and (precip_df[f'PREC_{year}'].max()>=precip_df['stat_PREC'][0]): 
-# 				#warm.append(year)#warm.update({station_id:year})
-# 				output_df=output_df.append({'station_id':k,'huc_id':hucs[k],'dry':np.nan,'warm':year,'warm_dry':np.nan},ignore_index=True)
-
-# 			elif (v[f'WTEQ_{year}'].max() < v[f'stat_WTEQ'][0]) and (precip_df[f'PREC_{year}'].max()<precip_df['stat_PREC'][0]) and ((temp_df[f'TAVG_{year}'][temp_df[f'TAVG_{year}']>0].count())>temp_df['stat_TAVG'][0]): 
-# 				#warm_dry.append(year)#warm_dry.update({station_id:year})
-# 				output_df=output_df.append({'station_id':k,'huc_id':hucs[k],'dry':np.nan,'warm':np.nan,'warm_dry':year},ignore_index=True)

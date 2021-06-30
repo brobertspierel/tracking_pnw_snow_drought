@@ -4,7 +4,7 @@ Documentation for low snow/snow drought in the PNW
 ==================================================
 Guide: 
 ^^^^^^
-Documentation for the body of python scripts which acquire SNOTEL data, MODIS/VIIRS optical remote sensing data and Sentinel 1 remote sensing data. The RS data was processed in Google Earth Engine and downloaded to a local server for analysis. 
+Documentation for the body of python scripts which acquire SNOTEL data and MODIS/VIIRS optical remote sensing data. The RS data was processed in Google Earth Engine and downloaded to a local server for analysis. 
 
 Dependencies: 
 		* `climata <https://pypi.org/project/climata/>`_
@@ -20,11 +20,6 @@ This document outlines some workflows and processes used to generate data and fi
    :caption: Script examples:
 
    Acquire SNOTEL data from NRCS <get_snotel.rst>
-   Calculate snow droughts from SNOTEL <calc_snow_drought.rst>
-   Plot snow drought on decadal scale <calc_plot_long_term_snow_drought.rst>
-   Collect all data for analysis <collect_all_data_class.rst>
-   Plot remote sensing data <calc_plot_rs_data.rst>
-   Merge remote sensing data and calculate stats <merge_rs_data_calc_stats.rst>
 
 
 .. toctree:: 

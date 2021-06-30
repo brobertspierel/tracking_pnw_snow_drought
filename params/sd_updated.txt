@@ -1,6 +1,5 @@
 {
 	"daymet_dir": "/vol/v1/general_files/user_files/ben/excel_files/daymet_annual_data/daily_time_chunks/",
-	"modis_dir":"/vol/v1/general_files/user_files/ben/excel_files/modis_data/twelve_day_testing/", 
 	"stations":"/vol/v1/general_files/user_files/ben/excel_files/snotel_station_data/NWCC_high_resolution_stations_w_GEE_generated_huc_ids.csv", 
 	"stations_no_hucs":"/vol/v1/general_files/user_files/ben/excel_files/NWCC_high_resolution_coordinates_2019_edited_updated_fields_final.csv",
 	"anom_start_date":"1980-10-01",
@@ -8,14 +7,14 @@
 	"pickles":"/vol/v1/general_files/user_files/ben/pickles/", 
 	"hucs_data":"/vol/v1/general_files/user_files/ben/excel_files/huc_data/08_hucs_area_sq_km_1.csv", 
 	"sp_data":"/vol/v1/general_files/user_files/ben/excel_files/modis_data/twelve_day_sp/", 
-	"sca_data":"/vol/v1/general_files/user_files/ben/excel_files/modis_data/daily_SCA/", 
-	"palette":{"dry":"#ca986a","warm":"#ca7030","warm_dry":"#ad3800"}, 
+	"sca_data":"/vol/v1/general_files/user_files/ben/excel_files/modis_data/seven_day_sum_75_forest/", 
+	"palette":{"dry":"#ca986a","warm":"#ca7030","warm_dry":"#ad3800","no_drought":"#f7f7f7"}, 
 	"stats":"/vol/v1/general_files/user_files/ben/pickles/kw_results/", 
 	"fig_dir":"/vol/v1/general_files/user_files/ben/paper_figures/figures/optical_figs/",
 	"huc_shapefile":"/vol/v1/general_files/user_files/ben/shapefiles/hucs/PNW_huc8_export_snotel.shp",
 	"us_boundary":"/vol/v1/general_files/user_files/ben/shapefiles/contiguous_us_dissolve.shp",
 	"pnw_shapefile":"/vol/v1/general_files/user_files/ben/shapefiles/states/PNW_states.shp", 
 	"canada":"/vol/v1/general_files/user_files/ben/shapefiles/canada/lpr_000b16a_e_epsg_4269.shp",
-	"output_dir":"/vol/v1/general_files/user_files/ben/paper_figures/figures/snow_drought_figs/", 
-	"season": "extended_winter"
+	"season": "extended_winter", 
+	"output_dir":"/vol/v1/general_files/user_files/ben/paper_figures/figures/final_figs/"
 }
