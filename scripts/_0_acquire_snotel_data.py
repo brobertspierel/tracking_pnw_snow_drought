@@ -30,8 +30,7 @@ class CollectData():
 
 	def get_snotel_data(self):#station, parameter,start_date,end_date): #create a function that pulls down snotel data
 		"""Collect snotel data from NRCS API. The guts of the following code block comes from: 
-		https://pypi.org/project/climata/. It is a Python library called climata that was developed to pull down time series 
-		data from various government-maintained networks."""
+		https://pypi.org/project/climata/."""
 
 		data = StationDailyDataIO(
 		station=self.format_station(), #station id
@@ -73,7 +72,7 @@ def main(snotel_data,pickle_dir):
 			count = 0
 			dfs = []
 			for var in ['WTEQ','PREC','TAVG']: 
-				var_df = CollectData(station, var, '1980-10-01', '2020-09-30', st).get_snotel_data() #station hardcoded 
+				var_df = CollectData(station, var, '1980-10-01', '2020-09-30', st).get_snotel_data() #dates are hardcoded 
 				if count > 0: 
 					var_df.drop(columns='site_id',inplace=True) #after the first iteration drop redundant cols 
 				dfs.append(var_df)
