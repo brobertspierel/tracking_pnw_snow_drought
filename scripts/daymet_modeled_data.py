@@ -1,10 +1,8 @@
 import ee
-import pprint 
-import pandas as pd 
-import numpy as np 
 
+#there must be a better way to deal with this just once 
 #deal with authentication
-# authenticate = ee.Authenticate()
+#authenticate = ee.Authenticate()
 # print('authenticate')
 # print(authenticate)
 ee.Initialize()
@@ -71,7 +69,7 @@ class ExportStats():
 			tileScale=4,
 			maxPixels=1e13
 			)
-		dict_out = pixel_ct_dict.set('huc8',feat.get('huc8')).set('date',ee.Date(img.get('system:time_start')))
+		dict_out = pixel_ct_dict.set(self.huc,feat.get(self.huc)).set('date',ee.Date(img.get('system:time_start')))
 		dict_feat = ee.Feature(None, dict_out)
 		return dict_feat
 
@@ -87,9 +85,9 @@ class ExportStats():
 
 		task=ee.batch.Export.table.toDrive(
 			collection=ee.FeatureCollection(self.generate_stats()).flatten(),
-			description= 'py_daymet_mean_stats_by_basin_'+self.timeframe+'_huc8',
+			description= f'py_daymet_mean_stats_by_basin_{self.timeframe}_{self.huc}',
 			folder="daymet_outputs",
-			fileNamePrefix='py_daymet_mean_stats_by_basin_'+self.timeframe+'_huc8',
+			fileNamePrefix=f'py_daymet_mean_stats_by_basin_{self.timeframe}_{self.huc}',
 			fileFormat= 'csv'
 			)
 		#start the task in GEE 
@@ -105,17 +103,18 @@ def main(hucs):
 				ic = GetDaymet(hucs.first().geometry(),start_year=year,start_month=m[0],end_month=m[1]).get_ics()
 			except IndexError as e: 
 				pass 
-			exports = ExportStats(ic,features=hucs,timeframe=f'start_date_{year}_{m[0]}_end_date_{year}_{m[1]}').run_exports()
+			exports = ExportStats(ic,features=hucs,timeframe=f'start_date_{year}_{m[0]}_end_date_{year}_{m[1]}',huc='huc6').run_exports()
+
 if __name__ == '__main__':
 	
 	pnw_snotel = ee.FeatureCollection("users/ak_glaciers/NWCC_high_resolution_coordinates_2019_hucs")
-	hucs = ee.FeatureCollection("USGS/WBD/2017/HUC08").filterBounds(pnw_snotel)
+	hucs = ee.FeatureCollection("USGS/WBD/2017/HUC06").filterBounds(pnw_snotel)
 	
 	main(hucs)
 
 ########################################################################
 #composites
-# class MakeComposites(): 
+# class MakeComposites():  
 # 	"""Create 7 or 12 day composites depending on other data."""
 
 # 	def __init__(self,ic,start_date,end_date,aoi,comp_time_step=12): 

@@ -16,5 +16,6 @@
 	"pnw_shapefile":"/vol/v1/general_files/user_files/ben/shapefiles/states/PNW_states.shp", 
 	"canada":"/vol/v1/general_files/user_files/ben/shapefiles/canada/lpr_000b16a_e_epsg_4269.shp",
 	"season": "extended_winter", 
-	"output_dir":"/vol/v1/general_files/user_files/ben/paper_figures/figures/final_figs/"
+	"output_dir":"/vol/v1/general_files/user_files/ben/paper_figures/figures/final_figs/",
+	"stats_dir":"/vol/v1/general_files/user_files/ben/excel_files/snow_drought_outputs/"
 }
