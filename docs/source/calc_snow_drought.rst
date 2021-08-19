@@ -5,8 +5,8 @@ Basic definitions for snow drought are based on work from Dierauer et al., 2019.
 
 
 Dependencies: 
-		*/scripts/snow_drought_definition_revision.py
-		*/scripts/_1_calculate_revised_snow_drought.py
-		*/scripts/_2_plot_sd_counts_comparison.py 
+		*snow_drought_definition_revision.py
+		*_1_calculate_revised_snow_drought.py
+		*_2_plot_sd_counts_comparison.py 
 		*scikit-learn
 
