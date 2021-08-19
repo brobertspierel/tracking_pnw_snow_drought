@@ -11,98 +11,96 @@ from functools import reduce
 from _1_calculate_revised_snow_drought import FormatData,CalcSnowDroughts
 import snow_drought_definition_revision as sd
 from snow_drought_definition_revision import DefineClusterCenters
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-#from matplotlib import colors
-from matplotlib.colors import ListedColormap
-import matplotlib as mpl
-
-def format_write_df(df): 
-	#add new cols where we inherit the distance only when there was a snow drought that year 
-	df['s_dry_dist'] = np.where(~(df['s_dry'].isnull()), df['s_sqdist'],np.nan)
-	df['s_warm_dist'] = np.where(~(df['s_warm'].isnull()), df['s_sqdist'],np.nan)
-	df['s_w_dry_dist'] = np.where(~(df['s_warm_dry'].isnull()), df['s_sqdist'],np.nan)
-	df['d_dry_dist'] = np.where(~(df['d_dry'].isnull()), df['d_sqdist'],np.nan)
-	df['d_warm_dist'] = np.where(~(df['d_warm'].isnull()), df['d_sqdist'],np.nan)
-	df['d_w_dry_dist'] = np.where(~(df['d_warm_dry'].isnull()), df['d_sqdist'],np.nan)
-	#remove old drought cols 
-	df.drop(columns = ['s_dry', 's_warm', 's_warm_dry', 'd_dry', 'd_warm', 'd_warm_dry','s_sqdist','d_sqdist'], inplace = True)
-
-	return df
+from sklearn.metrics import confusion_matrix 
+from sklearn.metrics import accuracy_score 
+from sklearn.metrics import classification_report 
+import seaborn as sns
+from scipy.stats import pearsonr
+import pymannkendall as mk
 
 
-def plot_dist_to_cluster_center(df_list,huc_col,**kwargs): #list of dfs with year, huc and dist to center (sqdist). List has three dfs, one for each period 
-	"""Make a plot of dist to cluster centroids."""
-	if kwargs.get('dataset') == 'snotel': 
-		source = 's'
-	elif kwargs.get('dataset') == 'daymet': 
-		source = 'd'
-	else: 
-		print('Check the source variable. It can be daymet or snotel as of 6/12/2021.')
+def mk_test(input_data): 
+	"""Run a version of the Mann-Kendall trend test."""
+
+	trend, h, p, z, Tau, s, var_s, slope, intercept = mk.original_test(input_data)
+
+	return trend, h, p, z, Tau, s, var_s, slope, intercept
+
+
+def plot_counts(df_list,output_dir,huc_col='huc8'): 
+	print('Entered the plotting function: ')
+	labels=['Snotel','Daymet']
 	
-	fig,axs = plt.subplots(3,3, gridspec_kw = {'wspace':0, 'hspace':0}, sharex=True, sharey=True)
-	
-	#read in some of the base shapefiles: 
-	hucs_shp = gpd.read_file(kwargs.get('huc_shapefile'))
-	us_bounds = gpd.read_file(kwargs.get('us_boundary'))
-	pnw_states = gpd.read_file(kwargs.get('pnw_shapefile'))
-	canada = gpd.read_file(kwargs.get("canada"))
-	hucs_shp[huc_col] = hucs_shp[huc_col].astype('int32')
-
-	cols = ['dry','warm','warm_dry']
+	nrow=3
+	ncol=3
+	fig,axs = plt.subplots(nrow,ncol,sharex=True,sharey=True,
+				gridspec_kw={'wspace':0,'hspace':0,
+                                    'top':0.95, 'bottom':0.075, 'left':0.05, 'right':0.95},
+                figsize=(nrow*2,ncol*2))
+	cols=['dry','warm','warm_dry']
 	xlabels=['Dry', 'Warm', 'Warm/dry']
 	ylabels=['Early','Mid','Late']
-	cmap='cubehelix'
-	vmin=0
-	vmax=4
-	for row in range(3): 
-		for col in range(3): 
-			df = df_list[row] #this is the temporal chunk 
+	output_dict = {}
+	mk_dict = {}
+	for x in range(3): 
+		for y in range(3): 
 			
-			#write these data out to disk to look at for writing 
-			write_df = format_write_df(df.copy())
-			dist_means = write_df.groupby('year')[['s_dry_dist','s_warm_dist','s_w_dry_dist','d_dry_dist','d_warm_dist','d_w_dry_dist']].mean()
-			write_fn = os.path.join(kwargs.get('stats_dir'), f'{ylabels[row]}_{cols[col]}_{huc_col}_snotel_daymet_sqdist_by_basin_no_delta_swe.csv')
-			dist_fn = os.path.join(kwargs.get('stats_dir'),f'{ylabels[row]}_{cols[col]}_{huc_col}_snotel_daymet_sqdist_yearly_mean_distances_no_delta_swe_mean.csv')
-			if not os.path.exists(write_fn): 
-				write_df.to_csv(write_fn)
-				dist_means.to_csv(dist_fn)
-			
-			#clean the data that is being used for plotting 
-			df = df[[f'{source}_sqdist', f'{source}_{cols[col]}',huc_col]].dropna() #get the drought type from the df 
-			df[huc_col] = df[huc_col].astype(int)
-			df = df.groupby(huc_col)[f'{source}_sqdist'].mean().reset_index()
-			plot_dict = dict(zip(list(df[huc_col]),list(df[f'{source}_sqdist']))) #make a dict from two cols to add to the spatial data 
-			hucs_shp['dist'] = hucs_shp[huc_col].map(plot_dict)
-			print(hucs_shp.dist.min())
-			print(hucs_shp.dist.max())
-			#plot it! 
-			canada.plot(ax=axs[row][col],color='#f2f2f2', edgecolor='darkgray',lw=0.5)
-			us_bounds.plot(ax=axs[row][col],color='#f2f2f2', edgecolor='black',lw=0.5)
-			pnw_states.plot(ax=axs[row][col],color='#f2f2f2',edgecolor='darkgray',lw=0.5)
-			im = hucs_shp.plot(ax=axs[row][col],column='dist',vmin=vmin,vmax=vmax,cmap=cmap)
-			
-			#set the extent to the PNW 
-			minx, miny, maxx, maxy = hucs_shp.geometry.total_bounds
-			axs[row][col].set_xlim(minx - 1, maxx + 1) # added/substracted value is to give some margin around total bounds
-			axs[row][col].set_ylim(miny - 1, maxy + 1)
+			#produce the count plots 
+			s_counts = df_list[x][f's_{cols[y]}'].value_counts().sort_index().astype('int')
+			d_counts = df_list[x][f'd_{cols[y]}'].value_counts().sort_index().astype('int')
+			# print(s_counts)
+			# print(d_counts)
+			df = pd.DataFrame({"snotel":s_counts,"daymet":d_counts})
+			#reformat a few things in the df 
+			df.index=df.index.astype(int)
+			df.replace(np.nan,0,inplace=True)
 
-			#set titles  
-			axs[0][col].set_title(xlabels[col],fontdict={'fontsize': 14})
-			
-			axs[row][0].set_ylabel(ylabels[row],fontsize=14)	
+			#there are not droughts in all the years and timeframes but these gaps mess up plotting 
+			#so we want to infill them with zeros so all the timeperiods have all of the years. 
+			df=df.reindex(np.arange(1990,2021), fill_value=0)
+			#run the mann-kendall test to see if these counts are increasing, decreasing or showing no trend over time 
+			mk_dict.update({f's_{ylabels[x]}_{xlabels[y]}':mk_test(df.snotel)[0],
+				f'd_{ylabels[x]}_{xlabels[y]}':mk_test(df.daymet)[0]})
 
-	
-	cax = fig.add_axes([0.9, 0.125, 0.03, 0.75]) #formatted like [left, bottom, width, height]
-	sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=vmin, vmax=vmax))
-	fig.colorbar(sm, cax=cax)
-	# plt.show() 
-	# plt.close('all')
-	plt.savefig(os.path.join(kwargs.get('output_dir'),f'{source}_long_term_mean_dist_by_{huc_col}_no_delta_swe_draft1.png'),dpi=400)
+			#add the counts to a dict so we can output the actual counts and look at them 
+			output_dict.update({f's_{ylabels[x]}_{xlabels[y]}':df['snotel'],f'd_{ylabels[x]}_{xlabels[y]}':df['daymet']})
 
+			# calculate Pearson's correlation
+			corr, _ = pearsonr(df.snotel, df.daymet)
+			print(f'Pearsons correlation: {corr}')
 
-def main(daymet_dir, pickles, start_date='1980-10-01', end_date='2020-09-30', huc_col='huc8', **kwargs):
+			df.plot.bar(ax=axs[x][y],color=['#D95F0E','#267eab'],width=0.9,legend=False)#,label=['Dry','Warm','Warm/dry']) #need to do something with the color scheme here and maybe error bars? This could be better as a box plot? 
+			axs[x][y].grid(axis='y',alpha=0.5)
+
+			#set axis labels and annotate 
+			axs[x][y].annotate(f'r = {round(corr,2)}',xy=(0.05,0.9),xycoords='axes fraction',fontsize=14)
+
+			axs[0][y].set_title(xlabels[y],fontdict={'fontsize': 14})
+			axs[x][0].set_ylabel(ylabels[x],fontsize=14)
+			# ax1.set_ylabel("Snow drought quantities")
+			axs[2][2].legend(labels=labels,loc='upper right')
+			#axs[x][y].set_xticklabels(xlabels, Fontsize= )
+			#axs[x][y].set_xticks(range(1990,2021,5))
+			start, end = axs[x][y].get_xlim()
+			#print(start,end)
+			#ax.xaxis.set_ticks(np.arange(start, end, stepsize))
+			for tick in axs[x][y].get_xticklabels():
+				tick.set_rotation(90)
+				#tick.label.set_fontsize(14) 
+			axs[x][y].tick_params(axis='x', labelsize=12)
+
+			#plt.xticks(rotation=90)
+	print('mk dict is')
+	print(mk_dict)
+	# stats_fn = os.path.join(output_dir,f'{huc_col}_snotel_daymet_snow_drought_counts_with_delta_swe_updated.csv')
+	# output_df = pd.DataFrame(output_dict)
+	# output_df.to_csv(stats_fn)
+	plt.show()
+	plt.close('all')
+
+def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_col = 'huc8', **kwargs):
 	"""Testing improved definitions of snow drought. Original definitions based on Dierauer et al 2019 but trying to introduce some more nuiance into the approach."""
-
+	print(f'The huc col being processed is: {huc_col}')
 	################################################################
 	#first do the daymet data 
 	#read in all the files in this dir and combine them into one df
@@ -150,8 +148,7 @@ def main(daymet_dir, pickles, start_date='1980-10-01', end_date='2020-09-30', hu
 
 	period_list = []
 	for p1,p2 in zip(['early','mid','late'],[early,mid,late]): 
-		#get snotel first
-		print('the season chunk is: ',p1)
+			#get snotel first
 		#make a temporal chunk of data 
 		snotel_chunk=FormatData(None,time_period=p1).split_yearly_data(output_df)
 
@@ -175,7 +172,11 @@ def main(daymet_dir, pickles, start_date='1980-10-01', end_date='2020-09-30', hu
 			daymet_drought=CalcSnowDroughts(p2,start_year=1991,sort_col=huc_col).prepare_df_cols()
 		else: 
 			daymet_drought=CalcSnowDroughts(p2,sort_col=huc_col).prepare_df_cols()
+		#print('daymet',daymet_drought)
+		#daymet_drought=daymet_drought[['huc8','year','dry','warm','warm_dry']]
 		
+		#daymet_drought.columns=['huc8','year']+['d_'+column for column in daymet_drought.columns if not (column =='huc8') | (column=='year')]
+
 	##########################################
 	
 		#run the kmeans with drought types as intiilization conditions (centroids) for the clusters
@@ -185,46 +186,31 @@ def main(daymet_dir, pickles, start_date='1980-10-01', end_date='2020-09-30', hu
 		s_output = []
 		d_output = []
 		for huc4 in huc4s: 
-			print('the basin id is: ',huc4)
 			huc4_s = sd.prep_clusters(snotel_drought,huc4,huc_col=huc_col) #get the subset of the snow drought data for a given huc4
 			huc4_d = sd.prep_clusters(daymet_drought,huc4,huc_col=huc_col)
 			#make the centroids that serve as the intialization for the kmeans clusters- these are like endmembers (ish)
-			print('doing snotel')
 			s_centroids = DefineClusterCenters(huc4_s,'WTEQ','PREC','TAVG').combine_centroids() #makes a numpy array with four centroids
-			print('doing daymet')
 			d_centroids = DefineClusterCenters(huc4_d,'swe','prcp','tavg').combine_centroids() #makes a numpy array with four centroids
 
-			#here the cluster centroids look different for the different huc4 basins
-			# print('s_centroids are: ')
-			# print(s_centroids)
-
-
-
 			#clusters should be like: {0:dry, 1:warm, 2:warm_dry, 3:no_drought} 6/8/2021 DOUBLE CHECK
-			#run kmeans for the snotel data 
+			#run kmeans for the snotel data
 			s_clusters = sd.run_kmeans(huc4_s[['WTEQ','PREC','TAVG']].to_numpy(),huc4_s['label'],s_centroids)
-			
-			s_clusters = sd.add_drought_cols_to_kmeans_output(s_clusters,huc_col=huc_col) #add a few cols needed for plotting 
-			# print('the kmeans output clusters look like: ')
-			# print(s_clusters)
-		
+			s_clusters = sd.add_drought_cols_to_kmeans_output(s_clusters, huc_col=huc_col) #add a few cols needed for plotting 
 			#run kmeans for the daymet data 
 			d_clusters = sd.run_kmeans(huc4_d[['swe','prcp','tavg']].to_numpy(),huc4_d['label'],d_centroids)
-			d_clusters = sd.add_drought_cols_to_kmeans_output(d_clusters,huc_col=huc_col) #add a few cols needed for plotting 
+			d_clusters = sd.add_drought_cols_to_kmeans_output(d_clusters, huc_col=huc_col) #add a few cols needed for plotting 
 
 			s_output.append(s_clusters)
 			d_output.append(d_clusters)
 		s_plot = pd.concat(s_output)
 
-		# print('plot example: ')
-		# print(s_plot)
 		#select the cols of interest and rename so there's no confusion when dfs are merged 
-		s_plot=s_plot[[huc_col,'year','sqdist','dry', 'warm','warm_dry']]
-		s_plot.columns=[huc_col,'year']+['s_'+column for column in s_plot.columns if not (column ==huc_col) | (column=='year')]
+		s_plot=s_plot[[huc_col,'year','dry','warm','warm_dry']]
+		s_plot.columns=[huc_col,'year']+['s_'+column for column in s_plot.columns if not (column == huc_col) | (column=='year')]
 
 		d_plot = pd.concat(d_output)
-		d_plot=d_plot[[huc_col,'year','sqdist','dry', 'warm','warm_dry']]
-		d_plot.columns=[huc_col,'year']+['d_'+column for column in d_plot.columns if not (column ==huc_col) | (column=='year')]
+		d_plot=d_plot[[huc_col,'year','dry','warm','warm_dry']]
+		d_plot.columns=[huc_col,'year']+['d_'+column for column in d_plot.columns if not (column == huc_col) | (column=='year')]
 		# print(s_plot)
 		# print(d_plot)
 		
@@ -236,8 +222,8 @@ def main(daymet_dir, pickles, start_date='1980-10-01', end_date='2020-09-30', hu
 		# print(dfs)
 		# print(dfs.columns)
 
-	plot_dist_to_cluster_center(period_list,huc_col,**kwargs)
-
+	plot_counts(period_list,kwargs.get('stats_dir'),huc_col=huc_col)
+	
 	#####################################################################
 
 	#test robert's unmixing idea 
@@ -252,6 +238,8 @@ def main(daymet_dir, pickles, start_date='1980-10-01', end_date='2020-09-30', hu
 
 	# print(test_df)
 
+	
+
 if __name__ == '__main__':
 	params = sys.argv[1]
 	with open(str(params)) as f:
@@ -261,25 +249,18 @@ if __name__ == '__main__':
 		pickles=variables['pickles']
 		stations=variables['stations']
 		daymet_dir=variables['daymet_dir']
-		palette=variables['palette']	
-		pnw_shapefile = variables["pnw_shapefile"]
-		huc_shapefile = variables['huc_shapefile']
-		us_boundary = variables['us_boundary']
-		output_dir=variables['output_dir']
-		canada=variables['canada']
+		palette=variables['palette']
 		stats_dir = variables['stats_dir']
-		palette = list(palette.values())
 	
 	hucs=pd.read_csv(stations)
-
-	#change to run for huc6 or huc8
+	
 	#get just the id cols 
-	hucs = hucs[['huc_08','id']]
-	
+	hucs = hucs[['huc_06','id']]
+	print('hucs shape is: ')
+	print(hucs.shape)
 	#rename the huc col
-	hucs.rename({'huc_08':'huc8'},axis=1,inplace=True)
+	hucs.rename({'huc_06':'huc6'},axis=1,inplace=True)
 	
-	hucs_dict=dict(zip(hucs.id,hucs.huc8))
+	hucs_dict=dict(zip(hucs.id,hucs.huc6))
 	
-	main(daymet_dir,pickles,huc_col='huc8',hucs=hucs_dict,palette=palette,pnw_shapefile=pnw_shapefile,
-		huc_shapefile=huc_shapefile,us_boundary=us_boundary,output_dir=output_dir,canada=canada,dataset='snotel',stats_dir=stats_dir)
+	main(daymet_dir,pickles,huc_col='huc6',hucs=hucs_dict,palette=palette,stats_dir=stats_dir)

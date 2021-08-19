@@ -16,9 +16,9 @@ from sklearn.metrics import accuracy_score
 from sklearn.metrics import classification_report 
 import seaborn as sns
 from scipy.stats import pearsonr
+import matplotlib.ticker as ticker
 
-
-def plot_counts(df_list,output_dir,huc_col='huc8'): 
+def plot_counts(df_list,output_dir,huc_col='huc8',**kwargs): 
 	print('Entered the plotting function: ')
 	labels=['Snotel','Daymet']
 	
@@ -27,31 +27,14 @@ def plot_counts(df_list,output_dir,huc_col='huc8'):
 	fig,axs = plt.subplots(nrow,ncol,sharex=True,sharey=True,
 				gridspec_kw={'wspace':0,'hspace':0,
                                     'top':0.95, 'bottom':0.075, 'left':0.05, 'right':0.95},
-                figsize=(nrow*2,ncol*2))
+                figsize=(8,6))
 	cols=['dry','warm','warm_dry']
 	xlabels=['Dry', 'Warm', 'Warm/dry']
 	ylabels=['Early','Mid','Late']
 	output_dict = {}
+	count = 0 
 	for x in range(3): 
 		for y in range(3): 
-			# print('x is: ',x)
-			# print('y is: ',y)
-			# print('col is: ',cols[y])
-			#produce the confusion matrices 
-			# reference_data = [float(i) for i in list(period_list[x][f's_{cols[y]}'])]
-			# predicted_data = [float(i) for i in list(period_list[x][f'd_{cols[y]}'])]
-			
-			# #ids = zonal_stats_df.index
-			# #generate some stats
-			# results = confusion_matrix(reference_data, predicted_data)#,zonal_stats_df.index) 
-			# print(results)
-			
-			# #ax=plt.subplot()
-			# sns.set(font_scale=2)  # crazy big
-			# sns.heatmap(results,annot=True,ax=axs[x][y],fmt='g',cmap='Blues')
-
-			# #axs[x][y].set_xlabel('Predicted labels');axs.set_ylabel('True labels')
-			# print(classification_report(reference_data,predicted_data))
 			
 			#produce the count plots 
 			s_counts = df_list[x][f's_{cols[y]}'].value_counts().sort_index().astype('int')
@@ -74,31 +57,35 @@ def plot_counts(df_list,output_dir,huc_col='huc8'):
 			print(f'Pearsons correlation: {corr}')
 
 			df.plot.bar(ax=axs[x][y],color=['#D95F0E','#267eab'],width=0.9,legend=False)#,label=['Dry','Warm','Warm/dry']) #need to do something with the color scheme here and maybe error bars? This could be better as a box plot? 
-			axs[x][y].grid(axis='y',alpha=0.5)
+			axs[x][y].grid(axis='both',alpha=0.25)
 
 			#set axis labels and annotate 
-			axs[x][y].annotate(f'r = {round(corr,2)}',xy=(0.05,0.9),xycoords='axes fraction',fontsize=14)
-			axs[0][y].set_title(xlabels[y],fontdict={'fontsize': 14})
-			axs[x][0].set_ylabel(ylabels[x],fontsize=14)
+			axs[x][y].annotate(f'r = {round(corr,2)}',xy=(0.05,0.9),xycoords='axes fraction',fontsize=10)
+			#add a subplot letter id 
+			axs[x][y].annotate(f'{chr(97+count)}',xy=(0.85,0.9),xycoords='axes fraction',fontsize=10,weight='bold')#f'{chr(97)}'
+			axs[0][y].set_title(xlabels[y],fontdict={'fontsize': 10})
+			axs[x][0].set_ylabel(ylabels[x],fontsize=10)
 			# ax1.set_ylabel("Snow drought quantities")
-			axs[2][2].legend(labels=labels,loc='upper center')
-			#axs[x][y].set_xticklabels(xlabels, Fontsize= )
-			#axs[x][y].set_xticks(range(1990,2021,5))
-			start, end = axs[x][y].get_xlim()
-			#print(start,end)
-			#ax.xaxis.set_ticks(np.arange(start, end, stepsize))
-			for tick in axs[x][y].get_xticklabels():
-				tick.set_rotation(90)
-				#tick.label.set_fontsize(14) 
-			axs[x][y].tick_params(axis='x', labelsize=12)
-
+			axs[2][2].legend(labels=labels,loc='upper center',prop={'size': 10})
+			axs[x][y].xaxis.set_major_locator(ticker.MultipleLocator(5))
+			# for tick in axs[x][y].get_xticklabels():
+			# 	tick.set_rotation(90)
+			# 	print('tick is: ',tick)
+			# 	print(type(tick))
+			# 	#tick.label.set_fontsize(14) 
+			axs[x][y].tick_params(axis='x', labelsize=8)
+			count += 1
 			#plt.xticks(rotation=90)
 	#plt.tight_layout()
-	stats_fn = os.path.join(output_dir,f'{huc_col}_snotel_daymet_snow_drought_counts_no_delta_swe.csv')
+	stats_fn = os.path.join(output_dir,f'{huc_col}_snotel_daymet_snow_drought_counts_w_delta_swe.csv')
 	output_df = pd.DataFrame(output_dict)
-	output_df.to_csv(stats_fn)
-	plt.show()
-	plt.close('all')
+	if not os.path.exists(stats_fn): 
+		output_df.to_csv(stats_fn)
+	fig_fn = os.path.join(kwargs.get('fig_dir'),f'revised_counts_snotel_daymet_{huc_col}_w_delta_swe_draft3.jpg')
+	if not os.path.exists(fig_fn): 
+		plt.savefig(fig_fn, dpi=400)
+	# plt.show()
+	# plt.close('all')
 
 def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_col = 'huc8', **kwargs):
 	"""Testing improved definitions of snow drought. Original definitions based on Dierauer et al 2019 but trying to introduce some more nuiance into the approach."""
@@ -174,7 +161,7 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_co
 			daymet_drought=CalcSnowDroughts(p2,start_year=1991,sort_col=huc_col).prepare_df_cols()
 		else: 
 			daymet_drought=CalcSnowDroughts(p2,sort_col=huc_col).prepare_df_cols()
-		#print('daymet',daymet_drought)
+		print('daymet',daymet_drought)
 		#daymet_drought=daymet_drought[['huc8','year','dry','warm','warm_dry']]
 		
 		#daymet_drought.columns=['huc8','year']+['d_'+column for column in daymet_drought.columns if not (column =='huc8') | (column=='year')]
@@ -220,11 +207,11 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_co
 		#merge the two datasets into one df 
 		dfs = s_plot.merge(d_plot,on=[huc_col,'year'],how='inner')
 		period_list.append(dfs)
-		# print('final output is: ')
-		# print(dfs)
-		# print(dfs.columns)
+		print('final output is: ')
+		print(dfs)
+		print(dfs.columns)
 
-	plot_counts(period_list,kwargs.get('stats_dir'),huc_col=huc_col)
+	#plot_counts(period_list,kwargs.get('stats_dir'),huc_col=huc_col,**kwargs)
 	
 	#####################################################################
 
@@ -253,15 +240,17 @@ if __name__ == '__main__':
 		daymet_dir=variables['daymet_dir']
 		palette=variables['palette']
 		stats_dir = variables['stats_dir']
+		fig_dir = variables['fig_dir']
 	
 	hucs=pd.read_csv(stations)
 	
 	#get just the id cols 
 	hucs = hucs[['huc_08','id']]
-	
+	print('hucs shape is: ')
+	print(hucs.shape)
 	#rename the huc col
 	hucs.rename({'huc_08':'huc8'},axis=1,inplace=True)
 	
 	hucs_dict=dict(zip(hucs.id,hucs.huc8))
 	
-	main(daymet_dir,pickles,huc_col='huc8',hucs=hucs_dict,palette=palette,stats_dir=stats_dir)
+	main(daymet_dir,pickles,huc_col='huc8',hucs=hucs_dict,palette=palette,stats_dir=stats_dir,fig_dir=fig_dir)

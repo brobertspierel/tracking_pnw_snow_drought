@@ -1,22 +1,9 @@
 import pandas as pd 
 import os 
 import sys 
-import geopandas as gpd 
-import json 
-import time 
-import glob
-from functools import reduce
 import matplotlib.pyplot as plt
 import numpy as np 
-from sklearn.metrics import confusion_matrix 
-from sklearn.metrics import accuracy_score 
-from sklearn.metrics import classification_report 
-import seaborn as sns
-from scipy.stats import pearsonr
 from sklearn.cluster import KMeans
-from sklearn.preprocessing import LabelEncoder
-from sklearn.preprocessing import MinMaxScaler
-from _1_calculate_revised_snow_drought import FormatData,CalcSnowDroughts
 
 #supress the SettingWithCopy warning in pandas
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -38,6 +25,9 @@ class DefineClusterCenters():
 	These cluster centroids are based on SWE, temp and precip and are used as the initialization conditions for a kmeans 
 	algorithm which outputs each snow drought unit (basin/year/winter chunk) with associated cluster (snow drought type) 
 	and a distance to that cluster centroid. Lower values mean the snow drought unit is closer to the extreme (endmember)
+	Input: 
+	df - a df for one huc4 for all the years in the record 
+	col names- these are specific to the dataset but should be for SWE, precip and temp
 	"""
 
 	def __init__(self,df,swe_col,prec_col,temp_col): 
@@ -50,9 +40,21 @@ class DefineClusterCenters():
 		"""Testing a scenario where we take the median (or mean) of predictor variables for each 
 		drought type and use those to define the initialization centroids for the kmeans algo. 
 		"""
-		out_df = df1[[self.swe_col,self.prec_col,self.temp_col]].median()
-		return out_df
+		out_df = df1[[self.swe_col,self.prec_col,self.temp_col]].mean()
+		out_df = out_df.to_frame().T
 
+		if not out_df.empty: 
+			#there are some instances where there are no cases of a drought 
+			#type in a given basin. In those cases fill the centroid with an arbitrarily 
+			#high number so that nothing gets assigned to it. The condition should go to no 
+			#drought but we need to keep four distinct centroids or the kmeans won't work. 
+			out_df.fillna(9999, inplace=True)
+			return out_df
+
+		else: 
+			print('Dealing with a circumstance where there are no instances of that drought type in this basin')
+			#there are some circumstances where a huc4 basin has no instances of a drought type. 
+			return pd.DataFrame({self.swe_col:[9999],self.prec_col:[9999],self.temp_col:[9999]})  
 
 	def check_centroid_arr_size(self,df1): 
 		"""Deal with a condition where the three values needed for the cluster centroid 
@@ -85,24 +87,23 @@ class DefineClusterCenters():
 		dry = self.df.loc[(self.df[self.swe_col]<self.df[f'mean_{self.swe_col}']) & 
 		(self.df[self.prec_col]<self.df[f'mean_{self.prec_col}'])&(self.df[self.temp_col]<=self.df[f'mean_{self.temp_col}'])]
 		#dry = dry.loc[dry[self.swe_col]==dry[self.swe_col].min()][[self.swe_col,self.prec_col,self.temp_col]] #.to_numpy() #get the row that has the lowest SWE value and make it into a little numpy array 
-		return self.make_median_centroids(dry).to_numpy()#self.check_centroid_arr_size(dry).to_numpy()
+		return self.make_median_centroids(dry).to_numpy() #self.check_centroid_arr_size(dry).to_numpy() 
 
 	def warm_sd_centroid(self): 
 		warm = self.df.loc[(self.df[self.swe_col]<self.df[f'mean_{self.swe_col}']) & 
 			(self.df[self.prec_col]>=self.df[f'mean_{self.prec_col}'])]
-	
 		#warm = warm.loc[warm[self.swe_col]==warm[self.swe_col].min()][[self.swe_col,self.prec_col,self.temp_col]]
-		return self.make_median_centroids(warm).to_numpy()#self.check_centroid_arr_size(warm).to_numpy()
+		return self.make_median_centroids(warm).to_numpy()#self.check_centroid_arr_size(warm).to_numpy() 
 
 	def warm_dry_sd_centroid(self): 
 		warm_dry = self.df.loc[(self.df[self.swe_col]<self.df[f'mean_{self.swe_col}']) & 
 		(self.df[self.prec_col]<self.df[f'mean_{self.prec_col}'])&(self.df[self.temp_col]>self.df[f'mean_{self.temp_col}'])]
 		#warm_dry = warm_dry.loc[warm_dry[self.swe_col]==warm_dry[self.swe_col].min()][[self.swe_col,self.prec_col,self.temp_col]]
-		return self.make_median_centroids(warm_dry).to_numpy()#self.check_centroid_arr_size(warm_dry).to_numpy()
+		return self.make_median_centroids(warm_dry).to_numpy() #self.check_centroid_arr_size(warm_dry).to_numpy() #self.make_median_centroids(warm_dry).to_numpy()
 
 	def no_sd_centroid(self): 
 		no_drought = self.df.loc[self.df[self.swe_col]==self.df[self.swe_col].max()][[self.swe_col,self.prec_col,self.temp_col]]
-		return self.make_median_centroids(no_drought).to_numpy()#self.check_centroid_arr_size(no_drought).to_numpy()
+		return self.make_median_centroids(no_drought).to_numpy()#self.check_centroid_arr_size(no_drought).to_numpy() #self.make_median_centroids(no_drought).to_numpy()
 
 	def combine_centroids(self): 
 		"""Take the three drought type centroids and no drought and make them into one numpy arr. 
@@ -123,17 +124,17 @@ def run_kmeans(X,y,centroids):
 	Outputs- 
 	Dataframe with the class label and the distance to the cluster centroid. 
 	"""
-	print('Entered the kmeans function.')
-	print('the centroids look like: ')
-	print(centroids)
 	#make sure an extra centroid didn't sneak through: 
 	if centroids.shape[0] > 4: 
 		raise CentroidSize(f'The number of centroids must be less than four. You have {centroids.shape[0]}')
+
 	kmeans = KMeans(n_clusters=4, init=centroids, max_iter=300, n_init=1, random_state=10) #centroids.shape[0]
 	pred_y = kmeans.fit_predict(X)
+	#print('The pred_y is: ', pred_y)
 	# squared distance to cluster center
+	#print('dists are: ')
 	X_dist = kmeans.transform(X)**2
-
+	#print(X_dist)
 	df = pd.DataFrame(X_dist.sum(axis=1).round(2), columns=['sqdist'])
 	
 	df['k_label'] = y.values
@@ -194,173 +195,8 @@ def add_drought_cols_to_kmeans_output(df,huc_col='huc8'):
 	df['dry'] = np.where(df['drought_clust']==0,df['year'],np.nan)
 	df['warm'] = np.where(df['drought_clust']==1,df['year'],np.nan)
 	df['warm_dry'] = np.where(df['drought_clust']==2,df['year'],np.nan)
-	#df['dry'] = np.where(df['drought_clust']==0,df['year'],np.nan) #add the no drought col
+	#df['no_drought'] = np.where(df['drought_clust']==0,df['year'],np.nan) #add the no drought col
 
 	return df 
 
 
-
-
-
-# print(test.shape)
-	# print(test['huc8'].unique())
-	# print(test)
-
-	#do dry first- if the conditions evaluate to true add the year and if not just fill with nan 
-	# sd_df['dry'] = np.where((sd_df[self.swe_c]<sd_df[f'mean_{self.swe_c}']) & 
-	# 	(sd_df[self.precip]<sd_df[f'mean_{self.precip}'])&(sd_df[self.temp]<=sd_df[f'mean_{self.temp}']),sd_df['year'],np.nan)
-
-	# #next do warm
-	# sd_df['warm'] = np.where((sd_df[self.swe_c]<sd_df[f'mean_{self.swe_c}']) & 
-	# 	(sd_df[self.precip]>=sd_df[f'mean_{self.precip}']),sd_df['year'],np.nan)
-
-	# #then do warm/dry 
-	# sd_df['warm_dry'] = np.where((sd_df[self.swe_c]<sd_df[f'mean_{self.swe_c}']) & 
-# 	(sd_df[self.precip]<sd_df[f'mean_{self.precip}'])&(sd_df[self.temp]>sd_df[f'mean_{self.temp}']),sd_df['year'],np.nan)
-
-
-
-
-	# fig = plt.figure()
-	# ax = fig.add_subplot(projection='3d')
-	# ax.scatter(test['WTEQ'],test['PREC'],test['TAVG'])
-	# ax.set_xlabel('SWE')
-	# ax.set_ylabel('prec')
-	# ax.set_zlabel('temp')
-	# plt.show()
-
-
-	# 	#get cols of interest 
-	# 	snotel_drought=snotel_drought[['huc8','year','dry_sd','warm_sd','warm_dry_sd','near_drought']]
-	# 	#rename cols so they don't get confused when data are merged 
-	# 	snotel_drought.columns=['huc8','year']+['s_'+column for column in snotel_drought.columns if not (column =='huc8') | (column=='year')]
-
-	# 	# print('snotel drought is: ')
-	# 	# print(snotel_drought)
-
-	# 	## all working fine, just doing some testing 6/30/2021
-	# 	##then do the same for daymet  
-	# 	if (p1 == 'mid') | (p1 == 'late'): 
-	# 		daymet_drought=CalcSnowDroughts(p2,start_year=1991).calculate_snow_droughts()
-	# 	else: 
-	# 		daymet_drought=CalcSnowDroughts(p2).calculate_snow_droughts()
-	# 	#print('daymet',daymet_drought)
-	# 	daymet_drought=daymet_drought[['huc8','year','dry_sd','warm_sd','warm_dry_sd','near_drought']]
-		
-	# 	daymet_drought.columns=['huc8','year']+['d_'+column for column in daymet_drought.columns if not (column =='huc8') | (column=='year')]
-	# 	print(daymet_drought)
-	# 	#merge the two datasets into one df 
-		
-
-	# 	dfs = snotel_drought.merge(daymet_drought,on=['huc8','year'],how='inner')
-	# 	#print('THe combined output looks like: ', dfs)
-	# 	#compare each drought type and record the results in a new col 
-
-	# 	dfs['dry']=dfs['s_dry_sd']==dfs['d_dry_sd']
-	# 	dfs['warm']=dfs['s_warm_sd']==dfs['d_warm_sd']
-	# 	dfs['warm_dry']=dfs['s_warm_dry_sd']==dfs['d_warm_dry_sd']
-
-	# 	print(dfs)
-	# 	#print(dfs.groupby(['huc8'])['dry','warm','warm_dry'].sum())
-	# 	# pd.set_option('display.max_columns', None)
-	# 	# pd.set_option('display.max_rows', None)
-	# 	# #print(dfs)
-	# 	period_list.append(dfs)
-
-
-	# #########################################################
-	# #test adding a figure 
-	# labels=['Snotel','Daymet']
-	# ###############################################################
-	# # print('list is: ', period_list)
-	# # #df = pd.DataFrame({"dry":dry_counts,"warm":warm_counts,"warm_dry":warm_dry_counts})
-	# nrow=3
-	# ncol=3
-	# fig,axs = plt.subplots(nrow,ncol,sharex=True,sharey=True,
-	# 			gridspec_kw={'wspace':0,'hspace':0,
- #                                    'top':0.95, 'bottom':0.075, 'left':0.05, 'right':0.95},
- #                figsize=(nrow*2,ncol*2))
-	# cols=['dry','warm','warm_dry']
-	# xlabels=['Dry', 'Warm', 'Warm/dry']
-	# ylabels=['Early','Mid','Late']
-	# for x in range(3): 
-	# 	for y in range(3): 
-	# 		print('x is: ',x)
-	# 		print('y is: ',y)
-	# 		print('col is: ',cols[y])
-	# 		#produce the confusion matrices 
-	# 		# reference_data = [float(i) for i in list(period_list[x][f's_{cols[y]}'])]
-	# 		# predicted_data = [float(i) for i in list(period_list[x][f'd_{cols[y]}'])]
-			
-	# 		# #ids = zonal_stats_df.index
-	# 		# #generate some stats
-	# 		# results = confusion_matrix(reference_data, predicted_data)#,zonal_stats_df.index) 
-	# 		# print(results)
-			
-	# 		# #ax=plt.subplot()
-	# 		# sns.set(font_scale=2)  # crazy big
-	# 		# sns.heatmap(results,annot=True,ax=axs[x][y],fmt='g',cmap='Blues')
-
-	# 		# #axs[x][y].set_xlabel('Predicted labels');axs.set_ylabel('True labels')
-	# 		# print(classification_report(reference_data,predicted_data))
-			
-	# 		#produce the count plots 
-	# 		s_counts = period_list[x][f's_{cols[y]}_sd'].value_counts().sort_index().astype('int')
-	# 		d_counts = period_list[x][f'd_{cols[y]}_sd'].value_counts().sort_index().astype('int')
-	# 		# print(s_counts)
-	# 		# print(d_counts)
-	# 		df = pd.DataFrame({"snotel":s_counts,"daymet":d_counts})
-	# 		#df = df.astype(int)
-	# 		#reformat a few things in the df 
-	# 		df.index=df.index.astype(int)
-	# 		df.replace(np.nan,0,inplace=True)
-
-	# 		#there are not droughts in all the years and timeframes but these gaps mess up plotting 
-	# 		#so we want to infill them with zeros so all the timeperiods have all of the years. 
-	# 		df=df.reindex(np.arange(1990,2021), fill_value=0)
-
-	# 		# calculate the Pearson's correlation between two variables
-			
-	# 		# seed random number generator
-	# 		#seed(1)
-	# 		# prepare data
-	# 		# data1 = 20 * randn(1000) + 100
-	# 		# data2 = data1 + (10 * randn(1000) + 50)
-	# 		# calculate Pearson's correlation
-	# 		corr, _ = pearsonr(df.snotel, df.daymet)
-	# 		print(f'Pearsons correlation: {corr}')
-
-	# 		print('df is: ')
-	# 		print(df)
-	# 		print('########################################')
-	# 		# print(s_counts)
-	# 		# print(d_counts)
-	# 		# s_counts.bar(ax=axs[x][y])
-	# 		# d_counts.bar(ax=axs[x][y])
-	# 		#set just the horizontal grid lines 
-	# 		# axs[x][y].set_axisbelow(True)
-	# 		# axs[x][y].yaxis.grid(color='gray', linestyle='dashed')
-
-	# 		df.plot.bar(ax=axs[x][y],color=['#D95F0E','#267eab'],width=0.9,legend=False)#,label=['Dry','Warm','Warm/dry']) #need to do something with the color scheme here and maybe error bars? This could be better as a box plot? 
-	# 		axs[x][y].grid(axis='y',alpha=0.5)
-
-	# 		#set axis labels and annotate 
-	# 		axs[x][y].annotate(f'r = {round(corr,2)}',xy=(0.05,0.9),xycoords='axes fraction',fontsize=14)
-	# 		axs[0][y].set_title(xlabels[y],fontdict={'fontsize': 14})
-	# 		axs[x][0].set_ylabel(ylabels[x],fontsize=14)
-	# 		# ax1.set_ylabel("Snow drought quantities")
-	# 		axs[2][2].legend(labels=labels,loc='upper center')
-	# 		#axs[x][y].set_xticklabels(xlabels, Fontsize= )
-	# 		#axs[x][y].set_xticks(range(1990,2021,5))
-	# 		start, end = axs[x][y].get_xlim()
-	# 		print(start,end)
-	# 		#ax.xaxis.set_ticks(np.arange(start, end, stepsize))
-	# 		for tick in axs[x][y].get_xticklabels():
-	# 			tick.set_rotation(90)
-	# 			#tick.label.set_fontsize(14) 
-	# 		axs[x][y].tick_params(axis='x', labelsize=12)
-
-	# 		#plt.xticks(rotation=90)
-	# #plt.tight_layout()
-	# plt.show()
-	# plt.close('all')

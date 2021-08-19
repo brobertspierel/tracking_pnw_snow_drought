@@ -134,11 +134,12 @@ class CalcSnowDroughts():
 		"""Modify the swe, precip and temp cols of input data (Daymet and SNOTEL as of 7/2021) 
 		to calculate snow drought types and especially snow drought cluster centroids for kmeans."""
 		#just running to test the delta SWE vs non delta SWE
-		self.input_df['year'] = self.input_df[self.date_col].dt.year
-		#restrict the dfs to 1990 or a user defined start year-doing this because some of the earlier years don't have enough data for the snotel stations 
-		self.input_df=self.input_df.loc[self.input_df['year']>=self.start_year]
+		# self.input_df['year'] = self.input_df[self.date_col].dt.year
+		# #restrict the dfs to 1990 or a user defined start year-doing this because some of the earlier years don't have enough data for the snotel stations 
+		# self.input_df=self.input_df.loc[self.input_df['year']>=self.start_year]
 		
-		#self.input_df = self.pos_delta_swe()
+		#uncomment to run with delta swe 
+		self.input_df = self.pos_delta_swe()
 	
 		if self.precip.upper() == 'PREC':
 			#process for snotel- these are both cumulative variables so we want to take the max 
@@ -146,13 +147,13 @@ class CalcSnowDroughts():
 			#get agg stats for swe and precip
 			print(f'Processing a precip col called PREC and swe called {self.swe_c}')
 			#run for non-delta swe
-			swe_prcp = self.input_df.groupby([self.sort_col,'year'])[[self.swe_c,self.precip]].max().reset_index() #changed max to sum 7/12/2021
+			#swe_prcp = self.input_df.groupby([self.sort_col,'year'])[[self.swe_c,self.precip]].max().reset_index() 
 			#run for delta swe
-			#swe_prcp = self.input_df.groupby([self.sort_col,'year']).agg({self.swe_c:'sum',self.precip:'max'}).reset_index() #changed max to sum 7/12/2021
+			swe_prcp = self.input_df.groupby([self.sort_col,'year']).agg({self.swe_c:'sum',self.precip:'max'}).reset_index() 
 		elif self.precip.lower() == 'prcp': 
 			#process for daymet- precip is the daily sum and swe is cumulative
 			print(f'Processing a precip col called prcp and a swe col called {self.swe_c}')
-			swe_prcp = self.input_df.groupby([self.sort_col,'year']).agg({self.swe_c:'max',self.precip:'sum'}).reset_index() #changed max to sum 7/12/2021
+			swe_prcp = self.input_df.groupby([self.sort_col,'year']).agg({self.swe_c:'sum',self.precip:'sum'}).reset_index() #changed max to sum for delta swe 7/12/2021
 		
 		else: 
 			#deal with an instance where those cols are something else
@@ -171,7 +172,7 @@ class CalcSnowDroughts():
 		#combine the three vars 
 		sd_df = swe_prcp.merge(temp_df,how='inner',on=[self.sort_col,'year'])
 		
-		#scale all the data 0-1
+		#scale all the data 0-1 
 		for col in [self.swe_c,self.precip,self.temp]: 
 			sd_df[col] = sd_df.groupby(self.sort_col)[col].transform(lambda x: minmax_scale(x.astype(float)))
 
