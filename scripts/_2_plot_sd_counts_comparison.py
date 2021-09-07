@@ -25,8 +25,8 @@ def plot_counts(df_list,output_dir,huc_col='huc8',**kwargs):
 	nrow=3
 	ncol=3
 	fig,axs = plt.subplots(nrow,ncol,sharex=True,sharey=True,
-				gridspec_kw={'wspace':0,'hspace':0,
-                                    'top':0.95, 'bottom':0.075, 'left':0.05, 'right':0.95},
+				gridspec_kw={'wspace':0.01,'hspace':0},
+                                    #'top':0.95, 'bottom':0.075, 'left':0.05, 'right':0.95},
                 figsize=(8,6))
 	cols=['dry','warm','warm_dry']
 	xlabels=['Dry', 'Warm', 'Warm/dry']
@@ -77,13 +77,17 @@ def plot_counts(df_list,output_dir,huc_col='huc8',**kwargs):
 			count += 1
 			#plt.xticks(rotation=90)
 	#plt.tight_layout()
-	stats_fn = os.path.join(output_dir,f'{huc_col}_snotel_daymet_snow_drought_counts_w_delta_swe.csv')
+	stats_fn = os.path.join(output_dir,f'{huc_col}_snotel_daymet_snow_drought_counts_w_delta_swe_draft1.csv')
 	output_df = pd.DataFrame(output_dict)
 	if not os.path.exists(stats_fn): 
 		output_df.to_csv(stats_fn)
-	fig_fn = os.path.join(kwargs.get('fig_dir'),f'revised_counts_snotel_daymet_{huc_col}_w_delta_swe_draft3.jpg')
+	fig_fn = os.path.join(kwargs.get('fig_dir'),f'revised_counts_snotel_daymet_{huc_col}_w_delta_swe_draft4.jpg')
 	if not os.path.exists(fig_fn): 
-		plt.savefig(fig_fn, dpi=400)
+		plt.savefig(fig_fn, 
+			dpi=500, 
+			bbox_inches = 'tight',
+    		pad_inches = 0.1
+    	)
 	# plt.show()
 	# plt.close('all')
 
@@ -113,6 +117,8 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_co
 	
 	#convert the temp column from F to C 
 	output_df['TAVG'] = (output_df['TAVG']-32)*(5/9) 
+	#there are a couple of erroneous temp values, remove those 
+	output_df = output_df.loc[output_df['TAVG'] <= 50]
 
 	#convert prec and swe cols from inches to cm 
 	output_df['PREC'] = output_df['PREC']*2.54
@@ -207,11 +213,11 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_co
 		#merge the two datasets into one df 
 		dfs = s_plot.merge(d_plot,on=[huc_col,'year'],how='inner')
 		period_list.append(dfs)
-		print('final output is: ')
-		print(dfs)
-		print(dfs.columns)
+		# print('final output is: ')
+		# print(dfs)
+		# print(dfs.columns)
 
-	#plot_counts(period_list,kwargs.get('stats_dir'),huc_col=huc_col,**kwargs)
+	plot_counts(period_list,kwargs.get('stats_dir'),huc_col=huc_col,**kwargs)
 	
 	#####################################################################
 

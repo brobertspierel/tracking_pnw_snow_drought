@@ -17,6 +17,8 @@ from sklearn.metrics import classification_report
 import seaborn as sns
 from scipy.stats import pearsonr
 import pymannkendall as mk
+from scipy import stats
+
 
 
 def mk_test(input_data): 
@@ -27,16 +29,16 @@ def mk_test(input_data):
 	return trend, h, p, z, Tau, s, var_s, slope, intercept
 
 
-def plot_counts(df_list,output_dir,huc_col='huc8'): 
+def plot_counts(df_list,output_dir,huc_col='huc8',**kwargs): 
 	print('Entered the plotting function: ')
 	labels=['Snotel','Daymet']
 	
 	nrow=3
 	ncol=3
 	fig,axs = plt.subplots(nrow,ncol,sharex=True,sharey=True,
-				gridspec_kw={'wspace':0,'hspace':0,
-                                    'top':0.95, 'bottom':0.075, 'left':0.05, 'right':0.95},
-                figsize=(nrow*2,ncol*2))
+				gridspec_kw={'wspace':0.025,'hspace':0.0},
+                                    #'top':0.95, 'bottom':0.075, 'left':0.05, 'right':0.95},
+                figsize=(8,6))
 	cols=['dry','warm','warm_dry']
 	xlabels=['Dry', 'Warm', 'Warm/dry']
 	ylabels=['Early','Mid','Late']
@@ -67,16 +69,18 @@ def plot_counts(df_list,output_dir,huc_col='huc8'):
 
 			# calculate Pearson's correlation
 			corr, _ = pearsonr(df.snotel, df.daymet)
+			rho, pval = stats.spearmanr(df.snotel, df.daymet)
 			print(f'Pearsons correlation: {corr}')
 
 			df.plot.bar(ax=axs[x][y],color=['#D95F0E','#267eab'],width=0.9,legend=False)#,label=['Dry','Warm','Warm/dry']) #need to do something with the color scheme here and maybe error bars? This could be better as a box plot? 
-			axs[x][y].grid(axis='y',alpha=0.5)
+			
 
 			#set axis labels and annotate 
-			axs[x][y].annotate(f'r = {round(corr,2)}',xy=(0.05,0.9),xycoords='axes fraction',fontsize=14)
+			axs[x][y].annotate(f'r = {round(corr,2)}',xy=(0.05,0.9),xycoords='axes fraction',fontsize=10)
+			axs[x][y].annotate(f'r = {round(corr,2)}',xy=(0.05,0.9),xycoords='axes fraction',fontsize=10)
 
-			axs[0][y].set_title(xlabels[y],fontdict={'fontsize': 14})
-			axs[x][0].set_ylabel(ylabels[x],fontsize=14)
+			axs[0][y].set_title(xlabels[y],fontdict={'fontsize': 10})
+			axs[x][0].set_ylabel(ylabels[x],fontsize=10)
 			# ax1.set_ylabel("Snow drought quantities")
 			axs[2][2].legend(labels=labels,loc='upper right')
 			#axs[x][y].set_xticklabels(xlabels, Fontsize= )
@@ -84,19 +88,38 @@ def plot_counts(df_list,output_dir,huc_col='huc8'):
 			start, end = axs[x][y].get_xlim()
 			#print(start,end)
 			#ax.xaxis.set_ticks(np.arange(start, end, stepsize))
+			
+			count = 0 
 			for tick in axs[x][y].get_xticklabels():
 				tick.set_rotation(90)
+				print('count is: ',count)
+				print('tick is: ',tick)
+				print(type(tick))
+				if not count % 5 == 0: 
+					print('count is',count,' ','removing tick')
+					tick.set_visible(False)
+				count +=1
 				#tick.label.set_fontsize(14) 
-			axs[x][y].tick_params(axis='x', labelsize=12)
+			axs[x][y].tick_params(axis='x', labelsize=10)
 
+			#remove ticks from plots without labels 
+			if not y==0: 
+				#axs[x][y].axes.get_yaxis().set_visible(False)
+				axs[x][y].yaxis.set_ticks([])
 			#plt.xticks(rotation=90)
+			axs[x][y].grid(axis='y',alpha=0.25)
 	print('mk dict is')
 	print(mk_dict)
 	# stats_fn = os.path.join(output_dir,f'{huc_col}_snotel_daymet_snow_drought_counts_with_delta_swe_updated.csv')
 	# output_df = pd.DataFrame(output_dict)
 	# output_df.to_csv(stats_fn)
-	plt.show()
-	plt.close('all')
+	plt.savefig(os.path.join(kwargs.get('fig_dir'),'overall_drought_counts_type_season_draft11.jpg'),
+		dpi=500, 
+		bbox_inches = 'tight',
+    	pad_inches = 0.1
+		)
+	# plt.show()
+	# plt.close('all')
 
 def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_col = 'huc8', **kwargs):
 	"""Testing improved definitions of snow drought. Original definitions based on Dierauer et al 2019 but trying to introduce some more nuiance into the approach."""
@@ -125,9 +148,11 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_co
 	#convert the temp column from F to C 
 	output_df['TAVG'] = (output_df['TAVG']-32)*(5/9) 
 
+	#there are a couple of erroneous temp values, remove those 
+	output_df = output_df.loc[output_df['TAVG'] <= 50]
 	#convert prec and swe cols from inches to cm 
-	output_df['PREC'] = output_df['PREC']*2.54
-	output_df['WTEQ'] = output_df['WTEQ']*2.54
+	output_df['PREC'] = output_df['PREC']*25.4
+	output_df['WTEQ'] = output_df['WTEQ']*25.4
 	
 	#remove rows that have one of the data types missing- this might need to be amended because 
 	#it means that there are different numbers of records in some of the periods. 
@@ -222,7 +247,7 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_co
 		# print(dfs)
 		# print(dfs.columns)
 
-	plot_counts(period_list,kwargs.get('stats_dir'),huc_col=huc_col)
+	plot_counts(period_list,kwargs.get('stats_dir'),huc_col=huc_col,**kwargs)
 	
 	#####################################################################
 
@@ -251,16 +276,17 @@ if __name__ == '__main__':
 		daymet_dir=variables['daymet_dir']
 		palette=variables['palette']
 		stats_dir = variables['stats_dir']
+		fig_dir = variables['fig_dir']
 	
 	hucs=pd.read_csv(stations)
 	
 	#get just the id cols 
-	hucs = hucs[['huc_06','id']]
+	hucs = hucs[['huc_08','id']]
 	print('hucs shape is: ')
 	print(hucs.shape)
 	#rename the huc col
-	hucs.rename({'huc_06':'huc6'},axis=1,inplace=True)
+	hucs.rename({'huc_08':'huc8'},axis=1,inplace=True)
 	
-	hucs_dict=dict(zip(hucs.id,hucs.huc6))
+	hucs_dict=dict(zip(hucs.id,hucs.huc8))
 	
-	main(daymet_dir,pickles,huc_col='huc6',hucs=hucs_dict,palette=palette,stats_dir=stats_dir)
+	main(daymet_dir,pickles,huc_col='huc8',hucs=hucs_dict,palette=palette,stats_dir=stats_dir,fig_dir=fig_dir)

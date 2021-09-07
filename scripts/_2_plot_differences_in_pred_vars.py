@@ -3,23 +3,21 @@ import numpy as np
 import os 
 import sys 
 import matplotlib.pyplot as plt 
-import geopandas as gpd 
 import json 
 import glob
 import datetime
 from functools import reduce
 from _1_calculate_revised_snow_drought import FormatData,CalcSnowDroughts
 import snow_drought_definition_revision as sd
-from snow_drought_definition_revision import DefineClusterCenters
-from sklearn.metrics import confusion_matrix 
-from sklearn.metrics import accuracy_score 
-from sklearn.metrics import classification_report 
-import seaborn as sns
+from snow_drought_definition_revision import DefineClusterCenter
 from scipy.stats import pearsonr
-import matplotlib.ticker as ticker
-import matplotlib.lines as mlines
-import matplotlib.transforms as mtransforms
 
+"""
+Make a plot that compares SWE, temp and precip for HUC8 or HUC6 basins. 
+Note that this is the summary of pred variables for the basin scale so 
+Daymet values are for the full basin and snotel values are the mean of the 
+stations in the basin. 
+"""
 
 def plot_vars_comparison(df_list,huc_col,**kwargs): 
 	fig,axs = plt.subplots(3,3, figsize=(8,6),sharex=True,sharey=True,
@@ -70,11 +68,11 @@ def plot_vars_comparison(df_list,huc_col,**kwargs):
 	# fig.text(0.5, 0.04, 'common X', ha='center')
 	# fig.text(0.04, 0.5, 'common Y', va='center', rotation='vertical')
 
-	# plt.show()
-	# plt.close('all')
-	fig_fn = os.path.join(kwargs.get('fig_dir'),f'{huc_col}_daymet_snotel_PREC_comparison_draft1.jpg')
-	if not os.path.exists(fig_fn): 
-		plt.savefig(fig_fn, dpi=400)
+	plt.show()
+	plt.close('all')
+	# fig_fn = os.path.join(kwargs.get('fig_dir'),f'{huc_col}_daymet_snotel_PREC_comparison_draft1.jpg')
+	# if not os.path.exists(fig_fn): 
+	# 	plt.savefig(fig_fn, dpi=400)
 
 def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_col = 'huc8', **kwargs):
 	"""Testing improved definitions of snow drought. Original definitions based on Dierauer et al 2019 but trying to introduce some more nuiance into the approach."""

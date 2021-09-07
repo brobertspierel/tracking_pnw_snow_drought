@@ -22,6 +22,11 @@ except Exception as e:
 	ee.Initialize()
 
 class GetDaymet(): 
+	"""Sets up the Daymet imageCollection for GEE. Calculates an average 
+	temperature band from tmin and tmax and adds that to the collection. 
+	Performs spatial and temporal filtering. 
+	"""
+
 	def __init__(self,aoi,start_year,start_month,end_month,**kwargs): 
 		self.start_year=start_year
 		self.start_month=start_month
@@ -30,7 +35,7 @@ class GetDaymet():
 		#set the rest of the vars from kwargs (end dates)
 
 	def get_data(self): 
-		daymet_ic = (ee.ImageCollection("NASA/ORNL/DAYMET_V4").filterBounds(self.aoi)
+		daymet_ic = (ee.ImageCollection("NASA/ORNL/DAYMET_V4")#.filterBounds(self.aoi) #not 100% sure why this was filtering to the first aoi 9/6/2021
 															  .filter(ee.Filter.calendarRange(self.start_year,self.start_year,'year'))
 															  .filter(ee.Filter.calendarRange(self.start_month,self.end_month,'month')))
 															  #.filter(ee.Filter.calendarRange(self.start_day,self.end_day,'day_of_month')))
@@ -73,7 +78,7 @@ class ExportStats():
 		"""Use a reducer to calc spatial stats."""
 		# var get_ic_counts = comp_ic.map(function(img){ 
 		pixel_ct_dict = img.reduceRegion(
-			reducer=ee.Reducer.mean(), #maybe change to median? This get's the basin mean for a given day (image)
+			reducer=self.reducer, #maybe change to median? This get's the basin mean for a given day (image)
 			geometry=feat.geometry(),
 			scale=self.scale,
 			tileScale=4,
@@ -84,19 +89,20 @@ class ExportStats():
 		return dict_feat
 
 	def generate_stats(self): 
-				
-		get_ic_stats=ee.FeatureCollection(self.features).map(lambda feat: self.ic.map(lambda img: self.calc_export_stats(feat,img)))
+		"""Iterator function for the calc_export_stats function. 
+		This emulates the nested functions approach in GEE Javascript API."""
 
+		get_ic_stats=ee.FeatureCollection(self.features).map(lambda feat: self.ic.map(lambda img: self.calc_export_stats(feat,img)))
 		return get_ic_stats
 
-	def run_exports(self,output_folder): 
+	def run_exports(self): 
 		"""Export some data."""
 
 		task=ee.batch.Export.table.toDrive(
 			collection=ee.FeatureCollection(self.generate_stats()).flatten(),
-			description= f'py_daymet_mean_stats_by_basin_{self.timeframe}_{self.huc}', #these filenames are hardcoded 
-			folder=output_folder,
-			fileNamePrefix=f'py_daymet_mean_stats_by_basin_{self.timeframe}_{self.huc}',
+			description= f'py_daymet_mean_stats_by_{self.modifier}_{self.timeframe}_{self.huc}', #these filenames are hardcoded 
+			folder=self.output_folder,
+			fileNamePrefix=f'py_daymet_mean_stats_by_{self.modifier}_{self.timeframe}_{self.huc}',
 			fileFormat= 'csv'
 			)
 		#start the task in GEE 
@@ -108,16 +114,27 @@ def main(hucs):
 	for year in range(1980,2021): #years: this is exclusive 
 		for m in [[11,12],[1,2],[3,4]]: #these are the seasonal periods (months) used in analysis 
 			try: 
-				ic = GetDaymet(hucs.first().geometry(),start_year=year,start_month=m[0],end_month=m[1]).get_ics()
+				ic = GetDaymet(hucs.first().geometry(),
+					start_year=year,
+					start_month=m[0],
+					end_month=m[1]
+					).get_ics()
 			except IndexError as e: 
 				pass 
-			#run the exports 
-			exports = ExportStats(ic,features=hucs,timeframe=f'start_date_{year}_{m[0]}_end_date_{year}_{m[1]}',huc='huc6').run_exports(output_folder)
+			#run the exports- note that default is to generate stats for a HUC level (e.g. 6,8) but this can be run as points (e.g. snotel). 
+			#you should change the reducer to first and then make sure to change the huc variable to whatever the point dataset id col is. 
+			exports = ExportStats(ic,features=hucs,timeframe=f'start_date_{year}_{m[0]}_end_date_{year}_{m[1]}',
+								huc='site_num',
+								reducer=ee.Reducer.first(),
+								output_folder='daymet_outputs', 
+								modifier='SNOTEL'
+								).run_exports()
 
 if __name__ == '__main__':
-	
+	#note that the default setup for running this is to use HUCS (polygons) which demands the mean reducer. 
+	#one should also be able to run this in point mode 
 	pnw_snotel = ee.FeatureCollection("users/ak_glaciers/NWCC_high_resolution_coordinates_2019_hucs")
 	hucs = ee.FeatureCollection("USGS/WBD/2017/HUC06").filterBounds(pnw_snotel)
 	
-	main(hucs)
+	main(pnw_snotel)
 

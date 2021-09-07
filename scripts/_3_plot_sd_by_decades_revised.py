@@ -7,21 +7,13 @@ import geopandas as gpd
 import json 
 import glob
 import pickle 
-import datetime
 from functools import reduce
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-#from matplotlib import colors
 from matplotlib.colors import ListedColormap
 import matplotlib as mpl
-from matplotlib import gridspec
 from _1_calculate_revised_snow_drought import FormatData,CalcSnowDroughts
 import snow_drought_definition_revision as sd
 from snow_drought_definition_revision import DefineClusterCenters
-from sklearn.metrics import confusion_matrix 
-from sklearn.metrics import accuracy_score 
-from sklearn.metrics import classification_report 
-import seaborn as sns
-from scipy.stats import pearsonr
 
 #supress the SettingWithCopy warning in pandas
 pd.options.mode.chained_assignment = None  # default='warn'

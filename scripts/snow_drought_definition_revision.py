@@ -114,7 +114,7 @@ class DefineClusterCenters():
 
 def run_kmeans(X,y,centroids): 
 	"""Run the sci-kit learn kmeans algo to cluster snow drought units (year/season/basin) 
-	into different snow drought types. This approaches uses the most 'extreme' case of each snow 
+	into different snow drought types. This approaches uses the mean case of each snow 
 	drought type as initialization cluster centroids. This serves the dual purpose of greatly speeding up 
 	processing and making the labeling much easier for the outputs. 
 	Inputs: 
