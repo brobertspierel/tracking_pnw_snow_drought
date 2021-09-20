@@ -41,8 +41,8 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_co
 	"""Testing improved definitions of snow drought. Original definitions based on Dierauer et al 2019 but trying to introduce some more nuiance into the approach."""
 	print(f'The huc col being processed is: {huc_col}')
 	#pickle these outputs to make the plot troubleshooting easier 
-	s_fn = os.path.join(pickles,f'snotel_periods_list_{huc_col}_no_delta_swe_updated.p')
-	d_fn = os.path.join(pickles,f'daymet_periods_list_{huc_col}_no_delta_swe_updated.p')
+	s_fn = os.path.join(pickles,f'snotel_periods_list_{huc_col}_w_delta_swe_year_limit_updated4.p')
+	d_fn = os.path.join(pickles,f'daymet_periods_list_{huc_col}_w_delta_swe_year_limit_updated4.p')
 	if not os.path.exists(s_fn): 
 		################################################################
 		#first do the daymet data 
@@ -53,7 +53,7 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_co
 		################################################################
 		#next do the snotel data 
 		output=[]
-
+		print('early is: ',early)
 		#read in some pickled objects, these look like a list of dfs with each being a station for the full time period 
 		for item in ['PREC','TAVG','WTEQ']:
 			#get the pickled objects for each parameter  
@@ -67,7 +67,8 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_co
 		
 		#convert the temp column from F to C 
 		output_df['TAVG'] = (output_df['TAVG']-32)*(5/9) 
-
+		#there are a couple of erroneous temp values, remove those 
+		output_df = output_df.loc[output_df['TAVG'] <= 50]
 		#convert prec and swe cols from inches to cm 
 		output_df['PREC'] = output_df['PREC']*2.54
 		output_df['WTEQ'] = output_df['WTEQ']*2.54
@@ -95,9 +96,8 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_co
 				#get snotel first
 			#make a temporal chunk of data 
 			snotel_chunk=FormatData(None,time_period=p1).split_yearly_data(output_df)
-
-			##########working below here
-			############################
+			print('processing ', p1)
+			
 			#calculate the snow droughts for that chunk 
 			if (p1 == 'mid') | (p1 == 'late'): 
 				snotel_drought=CalcSnowDroughts(snotel_chunk,swe_c='WTEQ',precip='PREC',temp='TAVG',start_year=1991,sort_col=huc_col).prepare_df_cols()
@@ -155,12 +155,13 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_co
 			d_plot = pd.concat(d_output)
 			d_plot=d_plot[[huc_col,'year','dry','warm','warm_dry']]
 			#d_plot.columns=[huc_col,'year']+['d_'+column for column in d_plot.columns if not (column == huc_col) | (column=='year')]
-			# print(s_plot)
-			# print(d_plot)
-			
-
-			#merge the two datasets into one df 
-			#dfs = s_plot.merge(d_plot,on=[huc_col,'year'],how='inner')
+			#remove stations that have less than the full 30 years of data 
+			print('daymet first')
+			print(d_plot)
+			s_plot = sd.remove_short_dataset_stations(s_plot,huc_col)
+			d_plot = sd.remove_short_dataset_stations(d_plot,huc_col)
+			print('daymet')
+			print(d_plot)
 			snotel_periods.append(s_plot)
 			daymet_periods.append(d_plot)
 		#if they don't already exist, pickle the outputs so this doesn't have to be done every time 
@@ -187,7 +188,12 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_co
 	nrow=3
 	ncol=3
 	#define the overall figure- numbers are hardcoded
-	fig,axs = plt.subplots(nrow,ncol,sharex=True,sharey=True,figsize=(8,6))
+	fig,axs = plt.subplots(nrow,ncol,
+							sharex=True,
+							sharey=True,
+							figsize=(8,6),
+							gridspec_kw={'wspace':0,'hspace':0}
+							)
 	#adjust font size
 	#plt.rcParams.update({'font.size': 16})
 
@@ -238,7 +244,7 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_co
 			export_df[f'dry_{i}'] = np.where(export_df['dry_colors'] == i,1,0)
 			export_df[f'warm_{i}'] = np.where(export_df['warm_colors'] == i,1,0)
 			export_df[f'warm_dry_{i}'] = np.where(export_df['warm_dry_colors'] == i,1,0)
-		csv_fn = os.path.join(kwargs.get('stats_dir'),f'{ylabels[x]}_season_{kwargs.get("dataset")}_most_prevalent_decades_by_sd_type_{huc_col}_no_delta_swe.csv') 
+		csv_fn = os.path.join(kwargs.get('stats_dir'),f'{ylabels[x]}_season_{kwargs.get("dataset")}_most_prevalent_decades_by_sd_type_{huc_col}_revised_w_delta_swe_draft2.csv') 
 		if not os.path.exists(csv_fn): 
 			export_df.to_csv(csv_fn)
 
@@ -273,11 +279,15 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_co
 	# fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cbar_ax)
 	#updated working
 	if kwargs.get('dataset') == 'snotel': 
-		cbar_ax = fig.add_axes([0.125, 0.05, 0.775, 0.02]) 
+		cbar_ax = fig.add_axes([0.125, 0.02, 0.775, 0.02]) 
 		fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cbar_ax, orientation='horizontal')
 
-	plt.subplots_adjust(hspace=0.0001,wspace=0.0001)
-	plt.savefig(os.path.join(kwargs.get('fig_dir'),f'{kwargs.get("dataset")}_droughts_by_decade_{huc_col}_no_delta_swe_draft_1.jpg'), dpi=400)
+	#plt.subplots_adjust(hspace=0.0001,wspace=0.0001)
+	plt.savefig(os.path.join(kwargs.get('fig_dir'),f'{kwargs.get("dataset")}_droughts_by_decade_{huc_col}_w_delta_swe_revised_draft_3.jpg'), 
+		dpi=500,
+		bbox_inches = 'tight',
+		pad_inches = 0.1
+		)
 	# plt.show()
 	# plt.close('all')
 
@@ -303,13 +313,13 @@ if __name__ == '__main__':
 hucs=pd.read_csv(stations)
 
 #get just the id cols 
-hucs = hucs[['huc_08','id']]
+hucs = hucs[['huc_06','id']]
 
 #rename the huc col
-hucs.rename({'huc_08':'huc8'},axis=1,inplace=True)
+hucs.rename({'huc_06':'huc6'},axis=1,inplace=True)
 
-hucs_dict=dict(zip(hucs.id,hucs.huc8))
+hucs_dict=dict(zip(hucs.id,hucs['huc6']))
 
-main(daymet_dir,pickles,huc_col='huc8',hucs=hucs_dict,palette=palette,stations=stations,
+main(daymet_dir,pickles,huc_col='huc6',hucs=hucs_dict,palette=palette,stations=stations,
 	pnw_shapefile=pnw_shapefile,huc_shapefile=huc_shapefile,us_boundary=us_boundary,output_dir=output_dir,
-	canada=canada,fig_dir=fig_dir,dataset='snotel',stats_dir=stats_dir)
+	canada=canada,fig_dir=fig_dir,dataset='daymet',stats_dir=stats_dir)

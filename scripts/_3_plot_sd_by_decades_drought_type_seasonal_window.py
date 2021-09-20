@@ -5,6 +5,13 @@ import matplotlib.pyplot as plt
 import numpy as np 
 import seaborn as sns 
 
+"""Make a plot of the temporal distribution of max drought types for basins and decades. 
+Inputs: 
+- this script depends on the csv files which are output by _3_plot_sd_by_decades_revised.py
+  Note that these outputs need to be summed and included in one csv. See example files below for formatting. 
+-output dir, this can be passed as a commandline arg
+"""
+
 def fix_headers(df): 
 	df.columns = df.columns.str.replace(' ','_')
 	df.columns = df.columns.str.replace('\n','_')
@@ -65,27 +72,28 @@ def make_decade_count_fig(daymet_df,snotel_df,output_dir,sort_col='huc8'):
 	plt.tight_layout()
 	# plt.show()
 	# plt.close('all')
-	output_fn = os.path.join(output_dir,f'{sort_col}_snotel_daymet_decades_basin_counts_draft2.jpg')
+	output_fn = os.path.join(output_dir,f'{sort_col}_snotel_daymet_decades_sd_type_seasonal_window_counts_draft1.jpg')
 	if not os.path.exists(output_fn): 
-		plt.savefig(output_fn, dpi=400)
+		plt.savefig(output_fn, 
+			dpi=500, 
+			bbox_inches = 'tight',
+    	pad_inches = 0.1
+			)
 
 def main(output_dir): 
 
-	huc8_d = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/writing/updated_stats/csvs_for_last_figs/HUC8_w_delta_SWE_daymet.csv"))
-	huc8_s = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/writing/updated_stats/csvs_for_last_figs/HUC8_w_delta_SWE_snotel.csv"))
-	huc6_d = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/writing/updated_stats/csvs_for_last_figs/HUC6_w_delta_SWE_daymet.csv"))
-	huc6_s = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/writing/updated_stats/csvs_for_last_figs/HUC6_w_delta_SWE_snotel.csv"))
-	
-	# huc8_d = huc8_d.reindex(sorted(huc8_d.columns), axis=1)
+	#these are obviously hardcoded and could be changed in a future version 
+	huc8_d = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/writing/updated_stats/updated_decadal_stats/daymet_huc8_level_decadal_stats_by_sd_type_and_period_draft1.csv"))
+	huc8_s = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/writing/updated_stats/updated_decadal_stats/snotel_huc8_level_decadal_stats_by_sd_type_and_period_draft1.csv"))
+	huc6_d = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/writing/updated_stats/updated_decadal_stats/daymet_huc6_level_decadal_stats_by_sd_type_and_period_draft1.csv"))
+	huc6_s = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/writing/updated_stats/updated_decadal_stats/snotel_huc6_level_decadal_stats_by_sd_type_and_period_draft1.csv"))
+	pts_d = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/writing/updated_stats/updated_decadal_stats/daymet_pts_level_decadal_stats_by_sd_type_and_period_draft1.csv"))
+	pts_s = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/writing/updated_stats/updated_decadal_stats/snotel_pts_level_decadal_stats_by_sd_type_and_period_draft1.csv"))
 
-
-	# print(huc8_d.T)
-	# #just get early 
-	# print(huc8_d.iloc[0].to_frame().T)
-
-	make_decade_count_fig(huc6_d,huc6_s,output_dir,sort_col='huc6')
+	make_decade_count_fig(pts_d,pts_s,output_dir,sort_col='pts')
 
 
 if __name__ == '__main__':
-	output_dir = "/vol/v1/general_files/user_files/ben/paper_figures/figures/final_figs_updated/"
+	
+	output_dir = str(sys.argv[1])
 	main(output_dir)

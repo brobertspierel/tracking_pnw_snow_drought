@@ -124,17 +124,14 @@ def run_kmeans(X,y,centroids):
 	Outputs- 
 	Dataframe with the class label and the distance to the cluster centroid. 
 	"""
-	#make sure an extra centroid didn't sneak through: 
+	#make sure an extra centroid didn't sneak through, they can be sneaky
 	if centroids.shape[0] > 4: 
 		raise CentroidSize(f'The number of centroids must be less than four. You have {centroids.shape[0]}')
 
 	kmeans = KMeans(n_clusters=4, init=centroids, max_iter=300, n_init=1, random_state=10) #centroids.shape[0]
 	pred_y = kmeans.fit_predict(X)
-	#print('The pred_y is: ', pred_y)
 	# squared distance to cluster center
-	#print('dists are: ')
 	X_dist = kmeans.transform(X)**2
-	#print(X_dist)
 	df = pd.DataFrame(X_dist.sum(axis=1).round(2), columns=['sqdist'])
 	
 	df['k_label'] = y.values
@@ -143,8 +140,7 @@ def run_kmeans(X,y,centroids):
 		df['drought_clust'] = pred_y
 	except Exception as e: 
 		print(f'Error here was {e}')
-	# print('label df is: ')
-	# print(df) #this df is the one we want to use to derive the labels. 
+	#this df is the one we want to use to derive the labels. 
 	return df 
 	##########################
 	##visualize the clusters and centroids 
@@ -170,28 +166,26 @@ def run_kmeans(X,y,centroids):
 	# ax.set_zlabel('TAVG')
 	# plt.show()
 
-def prep_clusters(df,huc4_str,huc_col='huc8'): 
+def prep_clusters(df,huc4_str,sort_col,huc_col='huc8'): 
 	"""Prepares data for running k-means algo."""
-	#make sure the huc_col is a str 
-	
+	#cast these cols as str so they can be concatenated into a unique id
 	df[huc_col] = df[huc_col].astype('str')
+	df[sort_col] = df[sort_col].astype('str')
 	basin_df = df.loc[df[huc_col].str.contains(huc4_str)] #get the huc8 or huc6 basins in the huc4 basin 
-	basin_df['label'] = basin_df[huc_col] + '_' + basin_df['year'].astype('str') #make a label col so we can attribute pts from the kmeans
-
+	basin_df['label'] = basin_df[sort_col] + '_' + basin_df['year'].astype('str') #make a label col so we can attribute pts from the kmeans
 	return basin_df
 
-def add_drought_cols_to_kmeans_output(df,huc_col='huc8'): 
+def add_drought_cols_to_kmeans_output(df,sort_col,huc_col='huc8'): 
 	"""Take the output of the kmeans algo, split the label col into separate cols and then 
 	add cols with the snow drought years so it can be made into a df for plotting 
 	and additional analysis. 
 	"""
-	# print('The df here is: ')
-	# print(df)
 	#split that label col back apart so we know the basin id and the year for the cluster
 	df['year'] = df['k_label'].str.split('_').str[1].astype(float)
-	df[huc_col] = df['k_label'].str.split('_').str[0].astype(float)
+	df[sort_col] = df['k_label'].str.split('_').str[0].astype(float)
+	#get rid of that col for subsequent analysis 
 	df.drop(columns=['k_label'],inplace=True)
-	#now add the drought cols 
+	#now add the drought cols from numeric label
 	df['dry'] = np.where(df['drought_clust']==0,df['year'],np.nan)
 	df['warm'] = np.where(df['drought_clust']==1,df['year'],np.nan)
 	df['warm_dry'] = np.where(df['drought_clust']==2,df['year'],np.nan)
@@ -200,15 +194,12 @@ def add_drought_cols_to_kmeans_output(df,huc_col='huc8'):
 	return df 
 
 
-def remove_short_dataset_stations(input_df,huc_col): 
+def remove_short_dataset_stations(input_df,sort_col): 
 	"""There is a scenario where some of the stations don't have 30 years of data. In 
 	these cases the data record starts after the start of the study time period. Remove these
 	stations because otherwise we're adding stations throughout the study time period and this could impact results. 
 	"""
-	counts=pd.DataFrame(input_df.groupby([huc_col])['year'].count().reset_index())
-	print('before restricting them counts are: ')
-	print(counts)
+	input_df[sort_col] = input_df[sort_col].astype(int)
+	counts=pd.DataFrame(input_df.groupby([sort_col])['year'].count().reset_index())
 	counts = counts.loc[counts['year']>=30]
-	print('after restricting them counts are: ')
-	print(counts)
-	return input_df.loc[input_df[huc_col].isin(list(counts[huc_col]))]
+	return input_df.loc[input_df[sort_col].isin(list(counts[sort_col]))]

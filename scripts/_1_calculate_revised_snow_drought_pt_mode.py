@@ -142,8 +142,6 @@ class CalcSnowDroughts():
 			#as of 7/19/2021 testing with sum of pos delta SWE
 			#get agg stats for swe and precip
 			print(f'Processing a precip col called PREC and swe called {self.swe_c}')
-			#run for non-delta swe
-			#swe_prcp = self.input_df.groupby([self.sort_col,'year'])[[self.swe_c,self.precip]].max().reset_index() 
 			#run for delta swe
 			swe_prcp = self.input_df.groupby([self.sort_col,'year']).agg({self.swe_c:'sum',self.precip:'max'}).reset_index() 
 		elif self.precip.lower() == 'prcp': 
@@ -168,15 +166,12 @@ class CalcSnowDroughts():
 		#combine the three vars 
 		sd_df = swe_prcp.merge(temp_df,how='inner',on=[self.sort_col,'year'])
 		
-		#scale all the data 0-1 
+		#scale all the data 0-1 for the kmeans centroids
 		for col in [self.swe_c,self.precip,self.temp]: 
 			sd_df[col] = sd_df.groupby(self.sort_col)[col].transform(lambda x: minmax_scale(x.astype(float)))
 
 		#get the long-term means. Not using std as of 7/19/2021
 		means = sd_df.groupby(self.sort_col).agg({self.swe_c:'mean',self.precip:'mean',self.temp:'mean'})
-		# print('means look like: ')
-		# print(means)
-		# print(means.shape)
 		#get the long-term std
 		#stds = sd_df.groupby(self.sort_col).agg({self.swe_c:'std',self.precip:'std',self.temp:'std'})
 		

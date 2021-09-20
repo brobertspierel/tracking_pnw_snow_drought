@@ -29,8 +29,7 @@ def plot_daily_pt_based_comparison(snotel, daymet, **kwargs): #these will come i
 		df = df[cols_plus]
 
 		#df=df[(np.abs(stats.zscore(df)) < 3).all(axis=1)]
-		print(df)
-		print(df.shape)
+		
 		df = df.loc[(df['tavg']<=40) & (df['s_tavg']<=40)] #this is maybe a little questionable
 
 		for y in range(3): #iterate through the rows
@@ -43,40 +42,36 @@ def plot_daily_pt_based_comparison(snotel, daymet, **kwargs): #these will come i
 
 			print('col is: ',cols[y])
 			print('snotel')
-			print(df[f's_{cols[y]}'].min(),
-				df[f's_{cols[y]}'].max())
+			print(df[f's_{cols[y]}'].mean())
 			print('daymet')
-			print(df[cols[y]].min(),
-				df[cols[y]].max()
+			print(df[cols[y]].mean()
 				)
-			axs[y][x].scatter(df[f's_{cols[y]}'],
-									df[cols[y]],
-									s=50,
-									facecolors='None',
-									edgecolors='black',
-									alpha=0.25
-									) 
+			axs[y][x].scatter(df[cols[y]],
+								df[f's_{cols[y]}'],
+								s=50,
+								facecolors='None',
+								edgecolors='black',
+								alpha=0.25
+								) 
 			#add pearson correlation 
-			corr, _ = pearsonr(df[f's_{cols[y]}'], df[cols[y]])
-			rho, pval = stats.spearmanr(df[f's_{cols[y]}'], df[cols[y]])
-			axs[y][x].annotate(f'r = {round(rho,2)}',xy=(0.05,0.85),xycoords='axes fraction',fontsize=12)
-
-
+			corr, _ = pearsonr(df[cols[y]],df[f's_{cols[y]}'])
+			rho, pval = stats.spearmanr(df[cols[y]], df[f's_{cols[y]}'])
+			axs[y][x].annotate(f'r = {round(corr,2)}',xy=(0.05,0.85),xycoords='axes fraction',fontsize=12)
 
 	axs[0][0].set_title('Early',fontdict={'fontsize':'large'})
 	axs[0][1].set_title('Mid',fontdict={'fontsize':'large'})
 	axs[0][2].set_title('Late',fontdict={'fontsize':'large'})
-	axs[0][0].set_ylabel('\u03A3 SWE (mm)',fontsize=12)
+	axs[0][0].set_ylabel('SWE (mm)',fontsize=12)
 	axs[1][0].set_ylabel('Daily precip (mm)',fontsize=12)
 	axs[2][0].set_ylabel('Tavg (deg C)',fontsize=12)
 
-	fig.text(0.5, 0.04, 'SNOTEL', ha='center',fontsize=12)
-	fig.text(0.025, 0.5, 'Daymet', va='center', rotation='vertical',fontsize=12)
+	fig.text(0.5, 0.04, 'Daymet', ha='center',fontsize=12)
+	fig.text(0.025, 0.5, 'SNOTEL', va='center', rotation='vertical',fontsize=12)
 
 	# plt.show()
 	# plt.close('all')
 
-	plt.savefig(os.path.join(kwargs.get('fig_dir'),'snotel_daymet_comparison_spearman_draft1.jpg'),
+	plt.savefig(os.path.join(kwargs.get('fig_dir'),'snotel_daymet_comparison_pearson_adjusted_draft1.jpg'),
 		dpi=500, 
 		bbox_inches = 'tight',
     	pad_inches = 0

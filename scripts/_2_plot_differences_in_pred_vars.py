@@ -1,3 +1,5 @@
+#!/usr/bin/python -tt
+# -*- coding: utf-8 -*-
 import pandas as pd 
 import numpy as np 
 import os 
@@ -9,7 +11,7 @@ import datetime
 from functools import reduce
 from _1_calculate_revised_snow_drought import FormatData,CalcSnowDroughts
 import snow_drought_definition_revision as sd
-from snow_drought_definition_revision import DefineClusterCenter
+from snow_drought_definition_revision import DefineClusterCenters
 from scipy.stats import pearsonr
 
 """
@@ -20,8 +22,14 @@ stations in the basin.
 """
 
 def plot_vars_comparison(df_list,huc_col,**kwargs): 
-	fig,axs = plt.subplots(3,3, figsize=(8,6),sharex=True,sharey=True,
-		gridspec_kw={'wspace':0,'hspace':0})
+	"""
+	The pred_var arg from kwargs will specify which predictor variable you are interested in plotting. 
+	This is a change as of 9/13/2021. 
+	""" 
+	fig,axs = plt.subplots(3,3, figsize=(8,6),
+							sharex=True,
+							sharey=True,
+							gridspec_kw={'wspace':0,'hspace':0})
 	cols=['dry','warm','warm_dry']
 	xlabels=['Dry', 'Warm', 'Warm/dry']
 	ylabels=['Early','Mid','Late']
@@ -33,9 +41,25 @@ def plot_vars_comparison(df_list,huc_col,**kwargs):
 			print('x is: ',x)
 			print('y is: ', y)
 			print('drought type is: ', cols[y])
-			
-			df['d_mod'] = np.where((~(df[f'd_{cols[y]}'].isnull()) & ~(df[f's_{cols[y]}'].isnull())), df['d_prcp'], np.nan)
-			df['s_mod'] = np.where((~(df[f'd_{cols[y]}'].isnull()) & ~(df[f's_{cols[y]}'].isnull())), df['s_PREC'], np.nan)
+			if kwargs.get('pred_var').lower() == 'precip': 
+				d_col = 'd_prcp'
+				s_col = 's_PREC'
+				label = 'precipitation'
+			elif kwargs.get('pred_var').lower() == 'temp': 
+				d_col = 'd_tavg'
+				s_col = 's_TAVG'
+				label = 'Temperature (\u03A3DD)'
+			elif kwargs.get('pred_var').lower() == 'swe': 
+				d_col = 'd_swe'
+				s_col = 's_WTEQ'
+				label = '\u03A3\u0394SWE'
+			else: 
+				print('Make sure you chose the right pred var. You can choose swe, precip or temp')
+
+			df['d_mod'] = np.where((~(df[f'd_{cols[y]}'].isnull()) & ~(df[f's_{cols[y]}'].isnull())), df[d_col], np.nan)
+			df['s_mod'] = np.where((~(df[f'd_{cols[y]}'].isnull()) & ~(df[f's_{cols[y]}'].isnull())), df[s_col], np.nan)
+			print('input looks like: ')
+			print(df)
 			print('daymet mean is: ')
 			print(df['d_mod'].mean())
 			print('snotel mean is: ')
@@ -51,28 +75,41 @@ def plot_vars_comparison(df_list,huc_col,**kwargs):
 			#add a line of best fit 
 			# m, b = np.polyfit(df['d_swe_mod'], df['s_swe_mod'], 1)
 			# axs[x][y].plot(df['d_swe_mod'], m*df['d_swe_mod'] + b)
+			print('testing')
+			print(df['d_mod'])
+			print(df['s_mod'])
+			#add pearseon/spearman correlation 
+			corr, _ = pearsonr(df['d_mod'].dropna(), df['s_mod'].dropna())
+			#rho, pval = stats.spearmanr(df[f's_{cols[y]}'], df[cols[y]])
+			axs[x][y].annotate(f'r = {round(corr,2)}',xy=(0.05,0.85),xycoords='axes fraction',fontsize=12)
 
 			#set axis labels and annotate 
 			#add a subplot letter id 
 			axs[x][y].annotate(f'{chr(97+count)}',xy=(0.85,0.9),xycoords='axes fraction',fontsize=10,weight='bold')#f'{chr(97)}'
 			axs[0][y].set_title(xlabels[y],fontdict={'fontsize': 10})
 			axs[x][0].set_ylabel(ylabels[x],fontsize=10)
-			
-			axs[x][y].tick_params(axis='both', labelsize=10)
+			axs[x][y].set_xticks([0.0, 0.5, 1.0])
+			axs[x][y].set_yticks([0.0, 0.5, 1.0])
+			axs[x][y].tick_params(axis='x', labelsize=10, rotation=45)
+			axs[x][y].tick_params(axis='y', labelsize=10)
 			count += 1
 			#axs[x][y].plot(np.unique(df['d_swe_mod']), np.poly1d(np.polyfit(df['d_swe_mod'], df['s_swe_mod'], 1))(np.unique(df['d_swe_mod'])), color='red', ls='--')
 	
-	fig.text(0.5, 0.04, 'Daymet scaled Tavg', ha='center',fontsize=10)
-	fig.text(0.02, 0.5, 'SNOTEL scaled Tavg', va='center', rotation='vertical',fontsize=10)
+	fig.text(0.5, 0.035, f'Daymet scaled {label}', ha='center',fontsize=10)
+	fig.text(0.02, 0.5, f'SNOTEL scaled {label}', va='center', rotation='vertical',fontsize=10)
 
 	# fig.text(0.5, 0.04, 'common X', ha='center')
 	# fig.text(0.04, 0.5, 'common Y', va='center', rotation='vertical')
 
-	plt.show()
-	plt.close('all')
-	# fig_fn = os.path.join(kwargs.get('fig_dir'),f'{huc_col}_daymet_snotel_PREC_comparison_draft1.jpg')
-	# if not os.path.exists(fig_fn): 
-	# 	plt.savefig(fig_fn, dpi=400)
+	# plt.show()
+	# plt.close('all')
+	fig_fn = os.path.join(kwargs.get('fig_dir'),f'{huc_col}_daymet_snotel_{kwargs.get("pred_var")}_comparison_draft3.jpg')
+	if not os.path.exists(fig_fn): 
+		plt.savefig(fig_fn, 
+					dpi=500, 
+					bbox_inches = 'tight',
+					pad_inches = 0, 
+					)
 
 def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_col = 'huc8', **kwargs):
 	"""Testing improved definitions of snow drought. Original definitions based on Dierauer et al 2019 but trying to introduce some more nuiance into the approach."""
@@ -212,26 +249,11 @@ def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_co
 		snotel_combined = snotel_drought.merge(s_plot, on=['year', huc_col], how='inner')
 
 		master_df = daymet_combined.merge(snotel_combined, on=['year', huc_col], how='inner')
+		master_df = sd.remove_short_dataset_stations(master_df,huc_col)
 		period_list.append(master_df)
 		print('beast df ', master_df)
 	plot_vars_comparison(period_list,huc_col,**kwargs)
 	#plot_counts(period_list,kwargs.get('stats_dir'),huc_col=huc_col,**kwargs)
-	
-	#####################################################################
-
-	#test robert's unmixing idea 
-	#I think this generally works but the issue is that displaying it somehow is hard. Additionally, it still requires some kind of thresholds to define what's what 
-	# test_df = snotel_drought.loc[snotel_drought.huc8==16010201]
-
-	# swe_min=test_df['WTEQ'].min()
-	# precip_min = test_df['PREC'].min()
-	# max_temp = test_df['TAVG'].max()
-
-	# test_df['swe_pct'] = 1-(test_df['WTEQ'].min()/test_df['WTEQ'])
-
-	# print(test_df)
-
-	
 
 if __name__ == '__main__':
 	params = sys.argv[1]
@@ -257,4 +279,10 @@ if __name__ == '__main__':
 	
 	hucs_dict=dict(zip(hucs.id,hucs.huc8))
 	
-	main(daymet_dir,pickles,huc_col='huc8',hucs=hucs_dict,palette=palette,stats_dir=stats_dir,fig_dir=fig_dir)
+	main(daymet_dir,pickles,huc_col='huc8',
+							hucs=hucs_dict,
+							palette=palette,
+							stats_dir=stats_dir,
+							fig_dir=fig_dir,
+							pred_var='swe'
+							)

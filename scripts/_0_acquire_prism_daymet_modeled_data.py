@@ -21,52 +21,29 @@ except Exception as e:
 	ee.Authenticate()
 	ee.Initialize()
 
-class GetDaymet(): 
+class GetPrism(): 
 	"""Sets up the Daymet imageCollection for GEE. Calculates an average 
 	temperature band from tmin and tmax and adds that to the collection. 
 	Performs spatial and temporal filtering. 
 	"""
 
-	def __init__(self,aoi,start_year,start_month,end_month,**kwargs): 
+	def __init__(self,start_year,start_month,end_month,**kwargs): 
 		self.start_year=start_year
 		self.start_month=start_month
 		self.end_month=end_month
-		self.aoi=aoi
 		#set the rest of the vars from kwargs (end dates)
 
 	def get_data(self): 
-		daymet_ic = (ee.ImageCollection("NASA/ORNL/DAYMET_V4")#.filterBounds(self.aoi) #not 100% sure why this was filtering to the first aoi 9/6/2021
-															  .filter(ee.Filter.calendarRange(self.start_year,self.start_year,'year'))
-															  .filter(ee.Filter.calendarRange(self.start_month,self.end_month,'month')))
+		daymet_ic = (ee.ImageCollection("OREGONSTATE/PRISM/AN81d")#.filterBounds(self.aoi) #not 100% sure why this was filtering to the first aoi 9/6/2021
+																.filter(ee.Filter.calendarRange(self.start_year,self.start_year,'year'))
+																.filter(ee.Filter.calendarRange(self.start_month,self.end_month,'month'))
+																.select(['ppt','tmean']))
 															  #.filter(ee.Filter.calendarRange(self.start_day,self.end_day,'day_of_month')))
 		return daymet_ic
 
-	def average_temp(self,img): 
-		"""Take the average of tmax and tmin."""
-		tavg = (img.select('tmax').add(img.select('tmin'))).divide(ee.Image(2))
-
-		return img.addBands(ee.Image(tavg)) 
-
-	def get_ics(self): 
-		ic = self.get_data()
-		#tavg is a bit more complicated, do that one next 
-		output = ic.map(lambda img: self.average_temp(img))
-		#get a list of the band names in an image of the tavg ic
-		bands=output.first().bandNames()
-		
-		try: 
-			if bands.contains('tmin_1').getInfo(): 
-				output=output.select(bands,bands.replace('tmin_1','tavg'))
-			elif bands.contains('tmax_1').getInfo(): 
-				output=output.select(bands,bands.replace('tmax_1','tavg'))
-		except KeyError as e: 
-			print('The default col tmin_1 does not exist.')
-			print(f'The bands in the tavg ic look like: {bands}')
-		return output
-
 class ExportStats(): 
 
-	def __init__(self,ic,features,scale=1000,**kwargs): #make sure to define a different start date if you want something else 
+	def __init__(self,ic,features,scale=4000,**kwargs): #make sure to define a different start date if you want something else 
 		self.ic=ic
 		self.scale=scale
 		self.features = features#kwargs.get('features')
@@ -100,9 +77,9 @@ class ExportStats():
 
 		task=ee.batch.Export.table.toDrive(
 			collection=ee.FeatureCollection(self.generate_stats()).flatten(),
-			description= f'py_daymet_mean_stats_by_{self.modifier}_{self.timeframe}_{self.huc}', #these filenames are hardcoded 
+			description= f'py_prism_mean_stats_by_{self.modifier}_{self.timeframe}_{self.huc}', #these filenames are hardcoded 
 			folder=self.output_folder,
-			fileNamePrefix=f'py_daymet_mean_stats_by_{self.modifier}_{self.timeframe}_{self.huc}',
+			fileNamePrefix=f'py_prism_mean_stats_by_{self.modifier}_{self.timeframe}_{self.huc}',
 			fileFormat= 'csv'
 			)
 		#start the task in GEE 
@@ -114,19 +91,19 @@ def main(hucs):
 	for year in range(1980,2021): #years: this is exclusive 
 		for m in [[11,12],[1,2],[3,4]]: #these are the seasonal periods (months) used in analysis 
 			try: 
-				ic = GetDaymet(hucs.first().geometry(),
+				ic = GetPrism(
 					start_year=year,
 					start_month=m[0],
 					end_month=m[1]
-					).get_ics()
+					).get_data()
 			except IndexError as e: 
 				pass 
 			#run the exports- note that default is to generate stats for a HUC level (e.g. 6,8) but this can be run as points (e.g. snotel). 
 			#you should change the reducer to first and then make sure to change the huc variable to whatever the point dataset id col is. 
 			exports = ExportStats(ic,features=hucs,timeframe=f'start_date_{year}_{m[0]}_end_date_{year}_{m[1]}',
 								huc='site_num',
-								reducer=ee.Reducer.first(), #change to mean for running basins
-								output_folder='daymet_outputs', 
+								reducer=ee.Reducer.first(), #change to mean for running basins, first for points
+								output_folder='prism_outputs', 
 								modifier='SNOTEL'
 								).run_exports()
 
@@ -136,5 +113,5 @@ if __name__ == '__main__':
 	pnw_snotel = ee.FeatureCollection("users/ak_glaciers/NWCC_high_resolution_coordinates_2019_hucs")
 	hucs = ee.FeatureCollection("USGS/WBD/2017/HUC06").filterBounds(pnw_snotel)
 	
-	main(hucs)
+	main(pnw_snotel)
 
