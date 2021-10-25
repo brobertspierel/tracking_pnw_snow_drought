@@ -1,8 +1,10 @@
 {
 "input_dir":"/vol/v1/general_files/user_files/ben/rasters/UA_SWE/UA_SWE/", 
-"agg_shape":"/vol/v1/general_files/user_files/ben/shapefiles/hucs/PNW_huc8_export_snotel.shp", 
-"agg_type":"huc8", 
+"agg_shape":"/vol/v1/general_files/user_files/ben/shapefiles/snotel/NWCC_high_resolution_coordinates_2019_hucs.shp", 
+"agg_type":"site_num", 
 "pickles":"/vol/v1/general_files/user_files/ben/pickles/", 
-"stats_dir":"/vol/v1/general_files/user_files/ben/excel_files/ua_swe_outputs/"
+"stats_dir":"/vol/v1/general_files/user_files/ben/excel_files/ua_swe_outputs/snotel_proj_combined/", 
+"ua_swe":"/vol/v1/general_files/user_files/ben/excel_files/ua_swe_outputs/snotel/", 
+"prism":"/vol/v1/general_files/user_files/ben/excel_files/prism/snotel_proj/"
 
 }

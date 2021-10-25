@@ -1,6 +1,6 @@
 import ee
 import geopandas as gpd
-#there must be a better way to deal with this just once 
+
 #deal with authentication
 try: 
   ee.Initialize()
@@ -151,9 +151,9 @@ def run_exports(fc, ic, start_date, end_date):
 
 	task=ee.batch.Export.table.toDrive(
 		collection=ee.FeatureCollection(generate_stats(fc, ic)).flatten(),
-		description= f'MODIS_daily_center_comps_{start_date}_{end_date}_huc8',
+		description= f'MODIS_bin_daily_center_comps_{start_date}_{end_date}_huc8',
 		folder="chapter_2",
-		fileNamePrefix=f'MODIS_daily_center_comps_{start_date}_{end_date}_huc8',
+		fileNamePrefix=f'MODIS_bin_daily_center_comps_{start_date}_{end_date}_huc8',
 		fileFormat= 'csv'
 		)
 	#start the task in GEE 
@@ -186,7 +186,7 @@ def main(basins):
       #gap filled imageCollection for the full period (currently a year as of 7/20/2021)
       gap_filled = ee.ImageCollection.fromImages(gap_filled)
        #binarize the ndsi band to make SCA 
-      #gap_filled = gap_filled.map(lambda img: binarize(img))
+      gap_filled = gap_filled.map(lambda img: binarize(img))
       exports = run_exports(basins, gap_filled, start_date, end_date)
     else: 
       break

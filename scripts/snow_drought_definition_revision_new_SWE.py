@@ -36,7 +36,7 @@ class DefineClusterCenters():
 		self.prec_col = prec_col
 		self.temp_col = temp_col
 
-	def make_median_centroids(self,df1): 
+	def make_mean_centroids(self,df1): 
 		"""Testing a scenario where we take the median (or mean) of predictor variables for each 
 		drought type and use those to define the initialization centroids for the kmeans algo. 
 		"""
@@ -87,23 +87,23 @@ class DefineClusterCenters():
 		dry = self.df.loc[(self.df[self.swe_col]<self.df[f'mean_{self.swe_col}']) & 
 		(self.df[self.prec_col]<self.df[f'mean_{self.prec_col}'])&(self.df[self.temp_col]<=self.df[f'mean_{self.temp_col}'])]
 		#dry = dry.loc[dry[self.swe_col]==dry[self.swe_col].min()][[self.swe_col,self.prec_col,self.temp_col]] #.to_numpy() #get the row that has the lowest SWE value and make it into a little numpy array 
-		return self.make_median_centroids(dry).to_numpy() #self.check_centroid_arr_size(dry).to_numpy() 
+		return self.make_mean_centroids(dry).to_numpy() #self.check_centroid_arr_size(dry).to_numpy() 
 
 	def warm_sd_centroid(self): 
 		warm = self.df.loc[(self.df[self.swe_col]<self.df[f'mean_{self.swe_col}']) & 
 			(self.df[self.prec_col]>=self.df[f'mean_{self.prec_col}'])]
 		#warm = warm.loc[warm[self.swe_col]==warm[self.swe_col].min()][[self.swe_col,self.prec_col,self.temp_col]]
-		return self.make_median_centroids(warm).to_numpy()#self.check_centroid_arr_size(warm).to_numpy() 
+		return self.make_mean_centroids(warm).to_numpy()#self.check_centroid_arr_size(warm).to_numpy() 
 
 	def warm_dry_sd_centroid(self): 
 		warm_dry = self.df.loc[(self.df[self.swe_col]<self.df[f'mean_{self.swe_col}']) & 
 		(self.df[self.prec_col]<self.df[f'mean_{self.prec_col}'])&(self.df[self.temp_col]>self.df[f'mean_{self.temp_col}'])]
 		#warm_dry = warm_dry.loc[warm_dry[self.swe_col]==warm_dry[self.swe_col].min()][[self.swe_col,self.prec_col,self.temp_col]]
-		return self.make_median_centroids(warm_dry).to_numpy() #self.check_centroid_arr_size(warm_dry).to_numpy() #self.make_median_centroids(warm_dry).to_numpy()
+		return self.make_mean_centroids(warm_dry).to_numpy() #self.check_centroid_arr_size(warm_dry).to_numpy() #self.make_median_centroids(warm_dry).to_numpy()
 
 	def no_sd_centroid(self): 
 		no_drought = self.df.loc[self.df[self.swe_col]==self.df[self.swe_col].max()][[self.swe_col,self.prec_col,self.temp_col]]
-		return self.make_median_centroids(no_drought).to_numpy()#self.check_centroid_arr_size(no_drought).to_numpy() #self.make_median_centroids(no_drought).to_numpy()
+		return self.make_mean_centroids(no_drought).to_numpy()#self.check_centroid_arr_size(no_drought).to_numpy() #self.make_median_centroids(no_drought).to_numpy()
 
 	def combine_centroids(self): 
 		"""Take the three drought type centroids and no drought and make them into one numpy arr. 
@@ -124,24 +124,31 @@ def run_kmeans(X,y,centroids):
 	Outputs- 
 	Dataframe with the class label and the distance to the cluster centroid. 
 	"""
-	#make sure an extra centroid didn't sneak through, they can be sneaky
+	#make sure an extra centroid didn't sneak through: 
 	if centroids.shape[0] > 4: 
 		raise CentroidSize(f'The number of centroids must be less than four. You have {centroids.shape[0]}')
 
 	kmeans = KMeans(n_clusters=4, init=centroids, max_iter=300, n_init=1, random_state=10) #centroids.shape[0]
+	 
 	pred_y = kmeans.fit_predict(X)
+	#print('The pred_y is: ', pred_y)
 	# squared distance to cluster center
+	#print('dists are: ')
 	X_dist = kmeans.transform(X)**2
+	#print(X_dist)
 	df = pd.DataFrame(X_dist.sum(axis=1).round(2), columns=['sqdist'])
 	
 	df['k_label'] = y.values
-	
+
 	try: 
 		df['drought_clust'] = pred_y
 	except Exception as e: 
 		print(f'Error here was {e}')
-	#this df is the one we want to use to derive the labels. 
+	# print('label df is: ')
+	# print(df) #this df is the one we want to use to derive the labels. 
+	
 	return df 
+	
 	##########################
 	##visualize the clusters and centroids 
 	# fig = plt.figure()
@@ -166,41 +173,40 @@ def run_kmeans(X,y,centroids):
 	# ax.set_zlabel('TAVG')
 	# plt.show()
 
-def prep_clusters(df,huc4_str,period,sort_col,huc_col='huc8'): 
+def prep_clusters(df,huc4_str,period,huc_col='huc8'): 
 	"""Prepares data for running k-means algo."""
-	#cast these cols as str so they can be concatenated into a unique id
-	df[huc_col] = df[huc_col].astype('str')
-	df[sort_col] = df[sort_col].astype('str')
-	basin_df = df.loc[df[huc_col].str.contains(huc4_str)] #get the huc8 or huc6 basins in the huc4 basin 
+	#make sure the huc_col is a str 
 	
-
+	df[huc_col] = df[huc_col].astype('str')
+	basin_df = df.loc[df[huc_col].str.contains(huc4_str)] #get the huc8 or huc6 basins in the huc4 basin 
+	#make a label col so we can attribute pts from the kmeans
+	#for the ua swe/prism data we don't change anything because that's already the water year
 	if not period: 
 		print('Not amending water year col')
-		basin_df['label'] = basin_df[sort_col] + '_' + basin_df['year'].astype('str') 
+		basin_df['label'] = basin_df[huc_col] + '_' + basin_df['year'].astype('str') 
 	#for the mid or late snotel periods we leave the year in the date because that's the water year 
 	elif (period == 'mid') | (period == 'late'): 
 		print('also not amending water year col')
-		basin_df['label'] = basin_df[sort_col] + '_' + basin_df['year'].astype('str') 
+		basin_df['label'] = basin_df[huc_col] + '_' + basin_df['year'].astype('str') 
 	#for the early season in snotel data we need to change the year to the water year so things get counted in the right place
 	elif (period == 'early'): 
 		print('processing a water year col')
 		basin_df['wy'] = basin_df['year'] + 1
-		basin_df['label'] = basin_df[sort_col] + '_' + basin_df['wy'].astype('str') 
-	#added the above block 9/29/2021 to align with new processing 
-	#basin_df['label'] = basin_df[sort_col] + '_' + basin_df['year'].astype('str') #make a label col so we can attribute pts from the kmeans
+		basin_df['label'] = basin_df[huc_col] + '_' + basin_df['wy'].astype('str') 
 	return basin_df
 
-def add_drought_cols_to_kmeans_output(df,sort_col,huc_col='huc8'): 
+def add_drought_cols_to_kmeans_output(df,huc_col='huc8'): 
 	"""Take the output of the kmeans algo, split the label col into separate cols and then 
 	add cols with the snow drought years so it can be made into a df for plotting 
 	and additional analysis. 
 	"""
+	# print('The df here is: ')
+	# print(df)
 	#split that label col back apart so we know the basin id and the year for the cluster
 	df['year'] = df['k_label'].str.split('_').str[1].astype(float)
-	df[sort_col] = df['k_label'].str.split('_').str[0].astype(float)
-	#get rid of that col for subsequent analysis 
+	df[huc_col] = df['k_label'].str.split('_').str[0].astype(float)
 	df.drop(columns=['k_label'],inplace=True)
-	#now add the drought cols from numeric label
+	#now add the drought cols 
 	df['dry'] = np.where(df['drought_clust']==0,df['year'],np.nan)
 	df['warm'] = np.where(df['drought_clust']==1,df['year'],np.nan)
 	df['warm_dry'] = np.where(df['drought_clust']==2,df['year'],np.nan)
@@ -209,12 +215,16 @@ def add_drought_cols_to_kmeans_output(df,sort_col,huc_col='huc8'):
 	return df 
 
 
-def remove_short_dataset_stations(input_df,sort_col): 
+def remove_short_dataset_stations(input_df,huc_col): 
 	"""There is a scenario where some of the stations don't have 30 years of data. In 
-	these cases the data record starts after the start of the study time period. Remove these
+	these cases the data record starts after the start of the study time period or with PRISM data 
+	occurs outside the CONUS boundaries and stats for those basins are not collected. Remove these
 	stations because otherwise we're adding stations throughout the study time period and this could impact results. 
 	"""
-	input_df[sort_col] = input_df[sort_col].astype(int)
-	counts=pd.DataFrame(input_df.groupby([sort_col])['year'].count().reset_index())
+	counts=pd.DataFrame(input_df.groupby([huc_col])['year'].count().reset_index())
+	# print('before restricting them counts are: ')
+	# print(counts)
 	counts = counts.loc[counts['year']>=29]
-	return input_df.loc[input_df[sort_col].isin(list(counts[sort_col]))]
+	# print('after restricting them counts are: ')
+	# print(counts)
+	return input_df.loc[input_df[huc_col].isin(list(counts[huc_col]))]

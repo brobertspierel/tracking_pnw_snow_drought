@@ -33,7 +33,7 @@ class FormatData():
 			try: 
 				output=output.drop(columns=self.drop_cols,axis=1) 
 				return output
-			except IndexError as e: 
+			except Exception as e: 
 				return output
 		elif self.sel_cols: 
 			print('using select columns')
@@ -118,49 +118,56 @@ class CalcSnowDroughts():
 	
 	def pos_delta_swe(self): 
 		"""Calculate the positive delta SWE (modify existing data in place) for each station/year/season."""
-		#add a year col for the annual ones 
+		#add a year col
+		#test for the non-delta SWE version
 		self.input_df['year'] = self.input_df[self.date_col].dt.year
 		#restrict the dfs to 1990 or a user defined start year-doing this because some of the earlier years don't have enough data for the snotel stations 
 		self.input_df=self.input_df.loc[self.input_df['year']>=self.start_year]
 		
-		#try reformatting the swe variable to test Mark's idea about positive delta swe- testing 7/12/2021
+		#reformat the SWE variable to cumulative delta SWE
 		#need to make sure when we're taking the diff (obvs minus the previous obvs) it is not crossing basins or years 
-		#this is not the fastest way of doing this nor is it the best. Just trying to get something that works atm. 
+		#this is not the fastest way of doing this nor is it the best. 
 		df_list = []
 		for huc in list(self.input_df[self.sort_col].unique()): 
 			for yr in list(self.input_df['year'].unique()): 
+				#get a df subset for a basin and a year. For winter and spring this would be the water year. For fall/early 
+				#winter it would be the year previous. 
 				subset = self.input_df.loc[(self.input_df[self.sort_col]==int(huc)) & (self.input_df['year']==int(yr))]
 				subset[self.swe_c] = subset[self.swe_c].diff()
 				df_list.append(subset)
 		self.input_df = pd.concat(df_list)
-		
+		#change erroneous negative values to nan 
 		self.input_df[self.swe_c] = np.where(self.input_df[self.swe_c] >=0, self.input_df[self.swe_c], np.nan)
 
 		return self.input_df
 
 	def prepare_df_cols(self):
 
-		"""Modify the swe, precip and temp cols of input data (Daymet and SNOTEL as of 7/2021) 
+		"""Modify the swe, precip and temp cols of input data (UA swe and SNOTEL as of 9/21/2021) 
 		to calculate snow drought types and especially snow drought cluster centroids for kmeans."""
 		
 		#calculate the delta SWE
 		self.input_df = self.pos_delta_swe()
-	
+		
+		# self.input_df['year'] = self.input_df[self.date_col].dt.year
+		# #restrict the dfs to 1990 or a user defined start year-doing this because some of the earlier years don't have enough data for the snotel stations 
+		# self.input_df=self.input_df.loc[self.input_df['year']>=self.start_year]
+
 		if self.precip.upper() == 'PREC':
-			#process for snotel- these are both cumulative variables so we want to take the max 
+			#process for snotel- precip is a cumulative variable so we take the max value  
 			#as of 7/19/2021 testing with sum of pos delta SWE
 			#get agg stats for swe and precip
 			print(f'Processing a precip col called PREC and swe called {self.swe_c}')
 			#run for delta swe
 			swe_prcp = self.input_df.groupby([self.sort_col,'year']).agg({self.swe_c:'sum',self.precip:'max'}).reset_index() 
 		elif self.precip.lower() == 'ppt': 
-			#process for ua swe- precip is the daily sum and swe is cumulative
-			print(f'Processing a precip col called prcp and a swe col called {self.swe_c}')
+			#process for ua_swe/prism- precip is the daily sum and delta swe is daily so we take the sum of both 
+			print(f'Processing a precip col called ppt and a swe col called {self.swe_c}')
 			swe_prcp = self.input_df.groupby([self.sort_col,'year']).agg({self.swe_c:'sum',self.precip:'sum'}).reset_index() #changed max to sum for delta swe 7/12/2021
 		
 		else: 
 			#deal with an instance where those cols are something else
-			print('Did not find a column called PREC or ppt.')
+			print('Did not find a column called PREC or prcp.')
 			precip_c = input('Please input the name of your precip column (case sensitive): ')
 			swe_c = input('Please input the name of your swe column (case sensitive): ')
 			precip_stat = input('Please input the summary stat for precip: ')
@@ -175,12 +182,23 @@ class CalcSnowDroughts():
 		#combine the three vars 
 		sd_df = swe_prcp.merge(temp_df,how='inner',on=[self.sort_col,'year'])
 		
-		#scale all the data 0-1 for the kmeans centroids
+		#pd.set_option("display.max_rows", None, "display.max_columns", None)
+		# print('pre-scaled')
+		# print(sd_df.head(100))
+		#scale all the data 0-1 
 		for col in [self.swe_c,self.precip,self.temp]: 
 			sd_df[col] = sd_df.groupby(self.sort_col)[col].transform(lambda x: minmax_scale(x.astype(float)))
 
+		# print('scaled data is: ')
+		# print(sd_df.head(100))
+
+
+
 		#get the long-term means. Not using std as of 7/19/2021
 		means = sd_df.groupby(self.sort_col).agg({self.swe_c:'mean',self.precip:'mean',self.temp:'mean'})
+		# print('means look like: ')
+		# print(means)
+		# print(means.shape)
 		#get the long-term std
 		#stds = sd_df.groupby(self.sort_col).agg({self.swe_c:'std',self.precip:'std',self.temp:'std'})
 		

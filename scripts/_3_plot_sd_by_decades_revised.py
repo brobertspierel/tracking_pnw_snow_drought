@@ -38,7 +38,7 @@ def define_snow_drought_recentness(input_df,grouping_col,output_var):
 	return output_dict
 
 def main(daymet_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_col = 'huc8', **kwargs):
-	"""Testing improved definitions of snow drought. Original definitions based on Dierauer et al 2019 but trying to introduce some more nuiance into the approach."""
+	"""Testing improved definitions of snow drought. Original definitions based on Dierauer et al 2019 but trying to introduce some more nuance into the approach."""
 	print(f'The huc col being processed is: {huc_col}')
 	#pickle these outputs to make the plot troubleshooting easier 
 	s_fn = os.path.join(pickles,f'snotel_periods_list_{huc_col}_w_delta_swe_year_limit_updated4.p')

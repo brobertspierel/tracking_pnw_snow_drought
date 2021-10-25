@@ -58,6 +58,7 @@ class ExportStats():
 			reducer=self.reducer, #maybe change to median? This get's the basin mean for a given day (image)
 			geometry=feat.geometry(),
 			scale=self.scale,
+			crs='EPSG:4326', 
 			tileScale=4,
 			maxPixels=1e13
 			)
@@ -77,9 +78,9 @@ class ExportStats():
 
 		task=ee.batch.Export.table.toDrive(
 			collection=ee.FeatureCollection(self.generate_stats()).flatten(),
-			description= f'py_prism_mean_stats_by_{self.modifier}_{self.timeframe}_{self.huc}', #these filenames are hardcoded 
+			description= f'proj_prism_mean_stats_for_{self.modifier}_{self.timeframe}', 
 			folder=self.output_folder,
-			fileNamePrefix=f'py_prism_mean_stats_by_{self.modifier}_{self.timeframe}_{self.huc}',
+			fileNamePrefix=f'proj_prism_mean_stats_for_{self.modifier}_{self.timeframe}',
 			fileFormat= 'csv'
 			)
 		#start the task in GEE 
@@ -88,19 +89,32 @@ class ExportStats():
 
 def main(hucs): 
 
-	for year in range(1980,2021): #years: this is exclusive 
-		for m in [[11,12],[1,2],[3,4]]: #these are the seasonal periods (months) used in analysis 
+	for wy in range(1990,2021): #years: this is exclusive 
+		
+		for m in [[11,12],[1,2],[3,4]]: #these are the seasonal periods (months) used in analysis 	
+			#generate the water year name first because that should be agnostic of the month 
+			timeframe = f'start_month_{m[0]}_end_month_{m[1]}_WY{wy}'
 			try: 
+				if m[1] == 12: 
+					#for the fall years, set the water year back one integer year. 
+					#Note that this will still be labeled as the water year (preceeding year)
+					amended_wy = wy-1
+				else: 
+					#for the winter and spring months reset the water year 
+					#to the original value because we don't want the previous year for that one
+					amended_wy = wy 
 				ic = GetPrism(
-					start_year=year,
+					start_year=amended_wy,
 					start_month=m[0],
 					end_month=m[1]
 					).get_data()
 			except IndexError as e: 
 				pass 
+			
 			#run the exports- note that default is to generate stats for a HUC level (e.g. 6,8) but this can be run as points (e.g. snotel). 
 			#you should change the reducer to first and then make sure to change the huc variable to whatever the point dataset id col is. 
-			exports = ExportStats(ic,features=hucs,timeframe=f'start_date_{year}_{m[0]}_end_date_{year}_{m[1]}',
+			exports = ExportStats(ic,features=hucs,
+								timeframe=timeframe,
 								huc='site_num',
 								reducer=ee.Reducer.first(), #change to mean for running basins, first for points
 								output_folder='prism_outputs', 
