@@ -1,7 +1,7 @@
 License
 =======
 
-Copyright <YEAR> <COPYRIGHT HOLDER>
+Copyright <2023> <Ben Roberts-Pierel>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this
 software and associated documentation files (the "Software"), to deal in the Software
@@ -21,4 +21,3 @@ CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFT
 THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-Questions: Please contact brobertspierel@gmail.com
