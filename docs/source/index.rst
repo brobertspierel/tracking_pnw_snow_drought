@@ -14,7 +14,7 @@ Dependencies:
 		* matplotlib
 
 This document outlines some workflows and processes used to generate data and figures for this project. Although the associated repo includes scripts for generating figures, this documentation focuses 
-primarily on data acquisition and the process for calculating snow drought occurrences and types. For additional information you can contact the author at: brobertspierel@gmail.com. 
+primarily on data acquisition and the process for calculating snow drought occurrences and types. 
 
 .. toctree::
    :maxdepth: 2
