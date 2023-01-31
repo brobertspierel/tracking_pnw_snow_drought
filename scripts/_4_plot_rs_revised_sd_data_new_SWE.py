@@ -321,14 +321,15 @@ def main(sca_data,pickles,output_dir,model_dir,resolution=500,huc_col='huc8',sta
 		print('mean')
 		print(ua_drought[cols].mean())
 		print(snotel_drought[cols].mean())
-
+		print(ua_drought[cols])
+		print(snotel_drought[cols])
 
 		#run the stats
 		ua_kw = kruskall_wallis(ua_drought,cols)
 		snotel_kw = kruskall_wallis(snotel_drought,cols)
 
-		print('ua', ua_kw)
-		print('snotel', snotel_kw)
+		print('ua ka', ua_kw)
+		print('snotel ka', snotel_kw)
 
 		ua_ls=ua_drought[cols].values.T.ravel()
 		

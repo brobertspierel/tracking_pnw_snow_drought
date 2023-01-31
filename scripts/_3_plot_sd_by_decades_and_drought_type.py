@@ -122,30 +122,57 @@ def create_summary_dfs_by_sd(df):
 
 def plot_decadal_trends_by_sd_type(s,ua,fig_output,spatial): 
 	"""Create plots of huc8, huc6 and pts mode trajectories by sd type."""
-	s_colors = ['#ccc596','#e4b047','#D95F0E','#666666']
-	ua_colors = ['#d4cfd9','#3333FF','#133F55','#666666']
+	s_colors = ['#ccc596','#e4b047','#D95F0E','#666666','#000000']
+	ua_colors = ['#d4cfd9','#3333FF','#133F55','#666666','#000000']
+	colors = ['#c0c0c0','#787878','#3b3b3b','#000000']
 	fig,(ax1,ax2) = plt.subplots(1,2, figsize=(8,6), 
 							sharex=True,
 							sharey=True,
 							gridspec_kw={'wspace':0,'hspace':0})
-	for x,sd in zip(range(3),['Dry','Warm','Warm/dry']): 
-		#first plot snotel
-		s.plot(x='decade',y=sd,ax=ax1,c=s_colors[x],linewidth=3)
-		ua.plot(x='decade',y=sd,ax=ax2,c=ua_colors[x],linewidth=3)
-		ax1.grid(axis='y',alpha=0.25)
-		ax2.grid(axis='y',alpha=0.25)
-		ax1.set_xticks(s.decade)
-		ax2.set_xticks(ua.decade)
-		ax1.set_xticklabels(ax1.get_xticks(),rotation=45)
-		ax2.set_xticklabels(ax2.get_xticks(),rotation=45) 
-		ax1.set_ylabel('Snow droughts')
-		#ax2.yaxis.set_visible(False)
-		#ax2.set_yticks(color='w')
-		ax1.set_xlabel('')
-		ax2.set_xlabel('')
-		ax1.annotate(f'{chr(97+0)}',xy=(0.1,0.9),xycoords='axes fraction',fontsize=12,weight='bold')#f'{chr(97)}'
-		ax2.annotate(f'{chr(97+1)}',xy=(0.1,0.9),xycoords='axes fraction',fontsize=12,weight='bold')#f'{chr(97)}'
-	fig_fn = os.path.join(fig_output,f'snotel_ua_swe_{spatial}_level_decadal_count_totals_w_delta_swe_proj_draft1.jpg')
+	
+	s['total'] = s.sum(axis=1)
+	ua['total'] = ua.sum(axis=1)
+	print('s is: ')
+	print(s)
+
+	for x,sd in zip(range(4),['Dry','Warm','Warm/dry','total']): 
+		if x <=2: 
+			#changed 10/25/2021 to just use the same grayscale for both 
+			s.plot(x='decade',y=sd,ax=ax1,c=colors[x],linewidth=3,linestyle='--')
+			ua.plot(x='decade',y=sd,ax=ax2,c=colors[x],linewidth=3,linestyle='-')
+			ax1.grid(axis='y',alpha=0.25)
+			ax2.grid(axis='y',alpha=0.25)
+			ax1.set_xticks(s.decade)
+			ax2.set_xticks(ua.decade)
+			ax1.set_xticklabels(ax1.get_xticks(),rotation=45)
+			ax2.set_xticklabels(ax2.get_xticks(),rotation=45) 
+			ax1.set_ylabel('Snow drought counts')
+			#ax2.yaxis.set_visible(False)
+			#ax2.set_yticks(color='w')
+			ax1.set_xlabel('')
+			ax2.set_xlabel('')
+			ax1.annotate(f'{chr(97+0)}',xy=(0.1,0.9),xycoords='axes fraction',fontsize=12,weight='bold')#f'{chr(97)}'
+			ax2.annotate(f'{chr(97+1)}',xy=(0.1,0.9),xycoords='axes fraction',fontsize=12,weight='bold')#f'{chr(97)}'
+		else: 
+			ax1 = ax1.twinx()
+			ax2 = ax2.twinx()
+			s.plot(x='decade',y=sd,ax=ax1,c=colors[x],linewidth=3,linestyle='--')
+			ua.plot(x='decade',y=sd,ax=ax2,c=colors[x],linewidth=3,linestyle='-')
+			ax1.grid(axis='y',alpha=0.25)
+			ax2.grid(axis='y',alpha=0.25)
+			ax1.set_xticks(s.decade)
+			ax2.set_xticks(ua.decade)
+			ax1.set_xticklabels(ax1.get_xticks(),rotation=45)
+			ax2.set_xticklabels(ax2.get_xticks(),rotation=45) 
+			ax1.set_ylabel('Snow drought counts')
+			#ax2.yaxis.set_visible(False)
+			#ax2.set_yticks(color='w')
+			ax1.set_xlabel('')
+			ax2.set_xlabel('')
+			ax1.annotate(f'{chr(97+0)}',xy=(0.1,0.9),xycoords='axes fraction',fontsize=12,weight='bold')#f'{chr(97)}'
+			ax2.annotate(f'{chr(97+1)}',xy=(0.1,0.9),xycoords='axes fraction',fontsize=12,weight='bold')#f'{chr(97)}'
+
+	fig_fn = os.path.join(fig_output,f'snotel_ua_swe_{spatial}_level_decadal_count_totals_full_season_w_delta_swe_proj_final1_w_all_droughts.jpg')
 	if not os.path.exists(fig_fn): 
 		plt.savefig(fig_fn,
 			dpi=500, 
@@ -154,8 +181,8 @@ def plot_decadal_trends_by_sd_type(s,ua,fig_output,spatial):
 	    	)
 	else: 
 		print(f'figure {fig_fn} created')
-	# plt.show()
-	# plt.close()
+		# plt.show()
+		# plt.close()
 
 def export_stats(df,stats_output,spatial,dataset): 
 	"""Read in a df and write out a csv to specified dir."""
@@ -183,46 +210,46 @@ def main(input_csvs,fig_output,stats_output):
 
 	####################################################
 	#use for one file 
-	pts = pd.read_csv(input_csvs)
+	huc6 = pd.read_csv(input_csvs)
 	#print(huc8)
 	####################################################
 	#create summary of outputs (dfs) of occurrences by sd type, seasonal window and decade 
 	#this will be the input to the plotting script that was previously making the peak decade plots 
 	#and is now just plotting things by decade, snow drought type and seasonal window 
-	s,ua = create_dfs_by_sd_and_window(pts)
-	#when they are concatenated there are nans introduced, remove those 
-	s = s.apply(lambda x: pd.Series(x.dropna().values).astype(int))
-	#remove the / from the col names 
-	s.columns = [col.replace('/', ' ') for col in s.columns]
-	#add a column with the periods/windows 
-	s['Snotel'] = ['Early','Mid','Late']
-	s.index = s.Snotel
-	print(s)
-	s.drop(columns=['Snotel'],inplace=True)
-	#do the same for daymet 
-	ua = ua.apply(lambda x: pd.Series(x.dropna().values).astype(int))
-	ua.columns = [col.replace('/', ' ') for col in ua.columns]
-	ua['ua_swe'] = ['Early','Mid','Late']
-	ua.index = ua.ua_swe
-	ua.drop(columns=['ua_swe'],inplace=True)
+	# s,ua = create_dfs_by_sd_and_window(pts)
+	# #when they are concatenated there are nans introduced, remove those 
+	# s = s.apply(lambda x: pd.Series(x.dropna().values).astype(int))
+	# #remove the / from the col names 
+	# s.columns = [col.replace('/', ' ') for col in s.columns]
+	# #add a column with the periods/windows 
+	# s['Snotel'] = ['Early','Mid','Late']
+	# s.index = s.Snotel
+	# print(s)
+	# s.drop(columns=['Snotel'],inplace=True)
+	# #do the same for daymet 
+	# ua = ua.apply(lambda x: pd.Series(x.dropna().values).astype(int))
+	# ua.columns = [col.replace('/', ' ') for col in ua.columns]
+	# ua['ua_swe'] = ['Early','Mid','Late']
+	# ua.index = ua.ua_swe
+	# ua.drop(columns=['ua_swe'],inplace=True)
 
 	
-	export_stats(s,stats_output,'pts','snotel')
-	export_stats(ua,stats_output,'pts','ua_swe')
+	# export_stats(s,stats_output,'pts','snotel')
+	# export_stats(ua,stats_output,'pts','ua_swe')
 
 	###########################################################
 	#create the output dfs for summary of occurrences by sd type and decade 
 	#s_huc8, ua_huc8 = create_summary_dfs_by_sd(huc8)
-	# s_huc6, ua_huc6 = create_summary_dfs_by_sd(huc6)
-	# s_pts, ua_pts = create_summary_dfs_by_sd(pts)
+	s_huc6, ua_huc6 = create_summary_dfs_by_sd(huc6)
+	#s_pts, ua_pts = create_summary_dfs_by_sd(pts)
 
 	# currently set up so that you need to change the params each time. This could be added to a for loop but then 
 	# would be more annoying to run just one. 
-	# plot_decadal_trends_by_sd_type(s_huc6, ua_huc6, fig_output, 'huc6')
+	plot_decadal_trends_by_sd_type(s_huc6, ua_huc6, fig_output, 'huc6')
 	# export_stats(s_huc6,stats_output,'huc6','snotel')
 	# export_stats(ua_huc6,stats_output,'huc6','ua_swe')
 	
-	# plot_decadal_trends_by_sd_type(s_pts, ua_pts, fig_output, 'pts')
+	#plot_decadal_trends_by_sd_type(s_pts, ua_pts, fig_output, 'pts')
 	# export_stats(s_pts,stats_output,'pts','snotel')
 	# export_stats(ua_pts,stats_output,'pts','ua_swe')
 

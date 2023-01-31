@@ -34,12 +34,12 @@ class GetPrism():
 		#set the rest of the vars from kwargs (end dates)
 
 	def get_data(self): 
-		daymet_ic = (ee.ImageCollection("OREGONSTATE/PRISM/AN81d")#.filterBounds(self.aoi) #not 100% sure why this was filtering to the first aoi 9/6/2021
+		prism_ic = (ee.ImageCollection("OREGONSTATE/PRISM/AN81d")#.filterBounds(self.aoi) #not 100% sure why this was filtering to the first aoi 9/6/2021
 																.filter(ee.Filter.calendarRange(self.start_year,self.start_year,'year'))
 																.filter(ee.Filter.calendarRange(self.start_month,self.end_month,'month'))
 																.select(['ppt','tmean']))
 															  #.filter(ee.Filter.calendarRange(self.start_day,self.end_day,'day_of_month')))
-		return daymet_ic
+		return prism_ic
 
 class ExportStats(): 
 

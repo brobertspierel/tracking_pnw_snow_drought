@@ -171,16 +171,16 @@ def make_decade_count_fig(ua_df,snotel_df,output_dir,sort_col='huc8'):
 def main(output_dir): 
 
 	#these are obviously hardcoded and could be changed in a future version 
-	huc8_ua = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/final_stats/ua_swe/total_counts/ua_swe_huc8_level_decadal_stats_by_drought_type_w_delta_swe_proj_draft1.csv"))
-	huc8_s = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/final_stats/ua_swe/total_counts/snotel_huc8_level_decadal_stats_by_drought_type_w_delta_swe_proj_draft1.csv"))
+	# huc8_ua = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/final_stats/ua_swe/total_counts/ua_swe_huc8_level_decadal_stats_by_drought_type_w_delta_swe_proj_draft1.csv"))
+	# huc8_s = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/final_stats/ua_swe/total_counts/snotel_huc8_level_decadal_stats_by_drought_type_w_delta_swe_proj_draft1.csv"))
 	# huc6_ua = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/final_stats/ua_swe/decades/ua_swe_huc6_level_decadal_stats_by_drought_for_next_fig_proj_draft1.csv"))
 	# huc6_s = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/final_stats/ua_swe/decades/snotel_huc6_level_decadal_stats_by_drought_for_next_fig_proj_draft1.csv"))
-	# pts_ua = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/final_stats/ua_swe/decades/ua_swe_pts_level_decadal_stats_by_drought_for_seasonal_window_fig_proj_draft1.csv"))
-	# pts_s = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/final_stats/ua_swe/decades/snotel_pts_level_decadal_stats_by_drought_for_seasonal_window_fig_proj_draft1.csv"))
+	pts_ua = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/final_stats/ua_swe/decades/ua_swe_pts_level_decadal_stats_by_drought_for_seasonal_window_fig_proj_draft1.csv"))
+	pts_s = fix_headers(pd.read_csv("/vol/v1/general_files/user_files/ben/excel_files/final_stats/ua_swe/decades/snotel_pts_level_decadal_stats_by_drought_for_seasonal_window_fig_proj_draft1.csv"))
 
 	# print(huc8_ua)
 	# print(huc8_s)
-	make_decade_count_fig(huc8_ua,huc8_s,output_dir,sort_col='pts')
+	make_decade_count_fig(pts_ua,pts_s,output_dir,sort_col='pts')
 
 
 if __name__ == '__main__':

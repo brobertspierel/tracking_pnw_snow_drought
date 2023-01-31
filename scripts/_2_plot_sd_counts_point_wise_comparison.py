@@ -86,15 +86,16 @@ def plot_counts(df_list,output_dir,huc_col='huc8',**kwargs):
 			axs[x][y].tick_params(axis='x', labelsize=8)
 			count += 1
 			#plt.xticks(rotation=90)
+	fig.text(0.025, 0.5, 'Snow drought count', va='center', rotation='vertical')
 	print('The output dict looks like: ')
 	print(output_dict)
 	print('mk dict is')
 	print(mk_dict)
-	stats_fn = os.path.join(output_dir,f'{huc_col}_snotel_ua_swe_drought_counts_w_delta_swe_point_based_draft1.csv')
+	stats_fn = os.path.join(output_dir,f'{huc_col}_snotel_ua_swe_drought_counts_w_delta_swe_point_based_final1.csv')
 	output_df = pd.DataFrame(output_dict)
 	if not os.path.exists(stats_fn): 
 		output_df.to_csv(stats_fn)
-	fig_fn = os.path.join(kwargs.get('fig_dir'),f'point_based_counts_snotel_ua_swe_{huc_col}_w_delta_swe_draft1.jpg')
+	fig_fn = os.path.join(kwargs.get('fig_dir'),f'point_based_counts_snotel_ua_swe_{huc_col}_w_delta_swe_final1.jpg')
 	if not os.path.exists(fig_fn): 
 		plt.savefig(fig_fn, 
 			dpi=500, 

@@ -7,6 +7,7 @@ import sys
 import matplotlib.pyplot as plt 
 import json 
 import glob
+import matplotlib as mpl
 import datetime
 from functools import reduce
 from _1_calculate_revised_snow_drought_new_SWE import FormatData,CalcSnowDroughts
@@ -71,14 +72,22 @@ def plot_vars_comparison(df_list,huc_col,**kwargs):
 			#remove nans because its messing with the line of best fit below 
 			#df = df.loc[(df['d_swe_mod'].isnull()) & (df['s_swe_mod'].isnull())]
 			
-			axs[x][y].scatter(df['ua_mod'], 
-								df['s_mod'], 
-								s=50,
-								marker='o', 
-								facecolors='none', 
-								edgecolors='black',
-								alpha=0.25
-								)
+			axs[y][x].hist2d(df['ua_mod'],
+							df['s_mod'],
+							bins=100,
+							# range=[[vmin,vmax],[vmin,vmax]],
+							norm=mpl.colors.LogNorm(), 
+							cmap=mpl.cm.gray 
+							)
+
+			# axs[x][y].scatter(df['ua_mod'], 
+			# 					df['s_mod'], 
+			# 					s=50,
+			# 					marker='o', 
+			# 					facecolors='none', 
+			# 					edgecolors='black',
+			# 					alpha=0.25
+			# 					)
 			#add a line of best fit 
 			# m, b = np.polyfit(df['d_swe_mod'], df['s_swe_mod'], 1)
 			# axs[x][y].plot(df['d_swe_mod'], m*df['d_swe_mod'] + b)

@@ -1,5 +1,5 @@
 {
-	"ua_swe_dir": "/vol/v1/general_files/user_files/ben/excel_files/ua_swe_outputs/snotel_proj_combined/",
+	"ua_swe_dir": "/vol/v1/general_files/user_files/ben/excel_files/ua_swe_outputs/huc8_proj_combined/", 
 	"stations":"/vol/v1/general_files/user_files/ben/excel_files/snotel_station_data/NWCC_high_resolution_stations_w_GEE_generated_huc_ids.csv", 
 	"stations_no_hucs":"/vol/v1/general_files/user_files/ben/excel_files/NWCC_high_resolution_coordinates_2019_edited_updated_fields_final.csv",
 	"anom_start_date":"1980-10-01",
@@ -8,8 +8,8 @@
 	"hucs_data":"/vol/v1/general_files/user_files/ben/excel_files/huc_data/08_hucs_area_sq_km_1.csv", 
 	"sp_data":"/vol/v1/general_files/user_files/ben/excel_files/modis_data/twelve_day_sp/", 
 	"sca_data":"/vol/v1/general_files/user_files/ben/excel_files/modis_data/daily_SCA_no_forest_thresh/", 
-	"stats":"/vol/v1/general_files/user_files/ben/excel_files/final_stats/ua_swe/total_counts/site_num_snotel_ua_swe_drought_counts_w_delta_swe_point_based_draft1.csv",
-	"fig_dir":"/vol/v1/general_files/user_files/ben/paper_figures/figures/ua_swe_figs/final_round/decades/",
+	"stats":"/vol/v1/general_files/user_files/ben/excel_files/final_stats/ua_swe/total_counts/huc6_ua_swe_snotel_snow_drought_counts_spearman_w_delta_swe_proj_final1.csv",
+	"fig_dir":"/vol/v1/general_files/user_files/ben/snow_droughts_paper_submission/figures",
 	"huc_shapefile":"/vol/v1/general_files/user_files/ben/shapefiles/hucs/PNW_huc8_export_snotel.shp",
 	"us_boundary":"/vol/v1/general_files/user_files/ben/shapefiles/contiguous_us.shp",
 	"pnw_shapefile":"/vol/v1/general_files/user_files/ben/shapefiles/states/PNW_states.shp", 

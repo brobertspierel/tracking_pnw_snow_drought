@@ -80,7 +80,7 @@ def plot_counts(df_list,output_dir,huc_col='huc8',**kwargs):
 			axs[0][y].set_title(xlabels[y],fontdict={'fontsize': 10})
 			axs[x][0].set_ylabel(ylabels[x],fontsize=10)
 			# ax1.set_ylabel("Snow drought quantities")
-			axs[2][2].legend(labels=labels,loc='upper center',prop={'size': 10})
+			axs[2][2].legend(labels=labels,loc='center right',prop={'size': 10})
 			axs[x][y].xaxis.set_major_locator(ticker.MultipleLocator(5))
 			# for tick in axs[x][y].get_xticklabels():
 			# 	tick.set_rotation(90)
@@ -89,14 +89,15 @@ def plot_counts(df_list,output_dir,huc_col='huc8',**kwargs):
 			# 	#tick.label.set_fontsize(14) 
 			axs[x][y].tick_params(axis='x', labelsize=8)
 			count += 1
-			#plt.xticks(rotation=90)
+	fig.text(0.025, 0.5, 'Snow drought count', va='center', rotation='vertical')
+
 	print('mk dict is')
 	print(mk_dict)
-	stats_fn = os.path.join(output_dir,f'{huc_col}_ua_swe_snotel_snow_drought_counts_spearman_w_delta_swe_proj_draft4.csv')
+	stats_fn = os.path.join(output_dir,f'{huc_col}_ua_swe_snotel_snow_drought_counts_spearman_w_delta_swe_proj_final1.csv')
 	output_df = pd.DataFrame(output_dict)
 	if not os.path.exists(stats_fn): 
 		output_df.to_csv(stats_fn)
-	fig_fn = os.path.join(kwargs.get('fig_dir'),f'ua_swe_counts_snotel_{huc_col}_spearman_w_delta_swe_proj_draft4.jpg')
+	fig_fn = os.path.join(kwargs.get('fig_dir'),f'ua_swe_counts_snotel_{huc_col}_spearman_w_delta_swe_proj_final_new_legend.jpg')
 	if not os.path.exists(fig_fn): 
 		plt.savefig(fig_fn, 
 			dpi=500, 
@@ -120,7 +121,6 @@ def main(model_dir,pickles,start_date='1980-10-01',end_date='2020-09-30',huc_col
 	output=[]
 	print('early')
 	print(early)
-	print(len(early.huc6.unique()))
 	#read in some pickled objects, these look like a list of dfs with each being a station for the full time period 
 	for item in ['PREC','TAVG','WTEQ']:
 		#get the pickled objects for each parameter  
@@ -266,13 +266,13 @@ if __name__ == '__main__':
 	hucs=pd.read_csv(stations)
 	
 	#get just the id cols 
-	hucs = hucs[['huc_06','id']]
+	hucs = hucs[['huc_08','id']]
 	print('hucs shape is: ')
 	print(hucs.shape)
 	#rename the huc col
-	hucs.rename({'huc_06':'huc6'},axis=1,inplace=True)
+	hucs.rename({'huc_08':'huc8'},axis=1,inplace=True)
 	
-	hucs_dict=dict(zip(hucs.id,hucs.huc6))
+	hucs_dict=dict(zip(hucs.id,hucs.huc8))
 	remove_ids = [17110004,
 				17110001,
 				17110005,
@@ -337,7 +337,7 @@ if __name__ == '__main__':
 	# 			]
 
 	main(ua_swe_dir,pickles,
-		huc_col='huc6',
+		huc_col='huc8',
 		hucs=hucs_dict,
 		stats_dir=stats_dir,
 		fig_dir=fig_dir,

@@ -74,8 +74,12 @@ def plot_counts(df_list,output_dir,huc_col='huc8',**kwargs):
 			#hucs_shp.plot(ax=ax1,color='gray',edgecolor='darkgray')
 			if kwargs.get('dataset').lower() == 'snotel': 
 				hucs_shp.plot(ax=axs[x][y],column='s_counts',cmap=cmap,vmin=0,vmax=20)
+				print('snotel looks like: ')
+				print(hucs_shp)
 			elif kwargs.get('dataset').lower() == 'ua_swe': 
 				hucs_shp.plot(ax=axs[x][y],column='ua_counts',cmap=cmap,vmin=0,vmax=20)
+				print('ua swe looks like')
+				print(hucs_shp)
 			else: 
 				print('That is not a legitimate dataset choice. You can choose ua_swe or snotel only as of 9/23/2021')
 			#axs[x][y].set_title('Dry snow drought')
@@ -93,7 +97,7 @@ def plot_counts(df_list,output_dir,huc_col='huc8',**kwargs):
 	# fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cbar_ax)
 	#updated working
 	if kwargs.get('dataset') == 'snotel': 
-		cbar_ax = fig.add_axes([0.125, 0.02, 0.775, 0.02]) 
+		cbar_ax = fig.add_axes([0.125, 0.02, 0.775, 0.02]) #like: [left, bottom, width, height]
 		fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cbar_ax, orientation='horizontal')
 
 	# #plt.subplots_adjust(hspace=0.0001,wspace=0.0001)
