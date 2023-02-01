@@ -1,11 +1,18 @@
-Acquire SNOTEL data from NRCS
+Acquire data products from Python
 =============================
+
+GEE 
++++++
+Get prism data from `GEE <https://github.com/brobertspierel/tracking_pnw_snow_drought/blob/master/scripts/_0_acquire_prism_modeled_data.py>`_
+Get MODIS data from `GEE <https://github.com/brobertspierel/tracking_pnw_snow_drought/blob/master/scripts/_0_acquire_optical_data_modis_only.py>`
+
+SNOTEL example
+++++++++++++++
 
 Example using the Python Climata library to acquire data for a time series for a selection of SNOTEL stations from NRCS web service. 
 
 Dependencies: 
 		* _0_acquire_snotel_data.py 
-
 
 Code Example:: 
 	

@@ -13,17 +13,19 @@ Dependencies:
 		* `geopandas <https://geopandas.org/>`_
 		* matplotlib
 
-This document outlines some workflows and processes used to generate data and figures for this project. Although the associated repo includes scripts for generating figures, this documentation focuses 
-primarily on data acquisition and the process for calculating snow drought occurrences and types. 
+This document outlines some workflows and processes used to generate data and figures for this project. 
+Although the associated repo includes scripts for generating figures, this documentation focuses 
+primarily on data acquisition and the process for calculating snow drought occurrences and types. There are a variety
+of (mostly) matplotlib-based scripts for generating figures used in the associated manuscript. All of these scripts are included 
+in the base repo under /scripts. 
 
 .. toctree::
    :maxdepth: 2
    :caption: Script examples:
 
-   Acquire SNOTEL data from NRCS <get_snotel.rst>
-   Acquire Daymet data via GEE <get_daymet.rst>
+   Acquire data <get_data.rst>
    Define and calculate snow droughts <calc_snow_drought.rst>
-
+   
 
 .. toctree:: 
    :maxdepth: 1
