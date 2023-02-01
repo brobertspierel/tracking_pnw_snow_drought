@@ -4,7 +4,12 @@ Documentation for low snow/snow drought in the PNW
 ==================================================
 Guide: 
 ^^^^^^
-Documentation for the body of python scripts which acquire SNOTEL data and MODIS/VIIRS optical remote sensing data. The RS data was processed in Google Earth Engine and downloaded to a local server for analysis. These scripts and the associated figure generation code is associated with Roberts-Pierel, B., Raleigh, M., Kennedy, R., (XXXX) "Tracking the evolution of snow drought in the Pacific Northwest at variable scales." [Working title]
+Documentation for the body of python scripts which acquire data, calculate snow droughts and generate figures
+in pursuit of an investigation into snow droughts and how they vary with scale and dataset selction. 
+The RS data was processed in Google Earth Engine and downloaded to a local 
+server for analysis. These scripts and the associated figure generation code are paired with 
+Roberts-Pierel, B., Raleigh, M., Kennedy, R., (XXXX) "Tracking the evolution of snow drought in the 
+Pacific Northwest at variable scales." [submitted]. Documentation is still a work in progress. 
 
 Dependencies: 
 		* `climata <https://pypi.org/project/climata/>`_
